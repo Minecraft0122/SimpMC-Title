@@ -1,0 +1,95 @@
+# SimpMC-Title 1.0.0
+# 文本支持传统颜色代码，例如 &a；也支持 RGB，例如 &#55ccff 或 <#55ccff>。
+
+language: zh_CN
+
+display:
+  # 默认显示的称号 ID。设置为空字符串即可关闭默认称号。
+  default-title: newbie
+  title-separator: " &7"
+  chat:
+    enabled: true
+    # %title% 和 %name% 会被替换；%2$s 必须保留，它代表聊天内容。
+    format: "%title%%name% &8» &r%2$s"
+  tab:
+    enabled: true
+    format: "%title%%name%"
+  head:
+    enabled: true
+    format: "%title%%name%"
+
+nickname:
+  max-length: 16
+  # 只允许字母、数字、下划线、短横线、空格和中文等 Unicode 字符。
+  pattern: "^[\\p{L}\\p{N}_\\- ]+$"
+  default-color: "<white>"
+
+titles:
+  newbie:
+    display: "&8[&7新手&8]"
+    description: "刚刚来到服务器的玩家"
+    icon: NAME_TAG
+    permission: ""
+  explorer:
+    display: "&8[&#55ccff探索者&8]"
+    description: "喜欢发现新世界"
+    icon: COMPASS
+    permission: "simpmctitle.title.explorer"
+  supporter:
+    display: "&8[&d支持者&8]"
+    description: "感谢你对服务器的支持"
+    icon: DIAMOND
+    permission: "simpmctitle.title.supporter"
+
+colors:
+  - "<white>"
+  - "<gray>"
+  - "<red>"
+  - "<gold>"
+  - "<yellow>"
+  - "<green>"
+  - "<aqua>"
+  - "<blue>"
+  - "<light_purple>"
+  - "<#55ccff>"
+  - "<gradient:#55ccff:#b36bff>"
+
+messages:
+  prefix: "&8[&bSimpMC-Title&8] "
+  no-permission: "&c你没有权限执行这个操作。"
+  player-only: "&c这个操作只能由玩家执行。"
+  unknown-command: "&7未知子命令，使用 &f/smtitle help &7查看帮助。"
+  reloaded: "&a配置已重载。"
+  title-not-found: "&c没有找到称号：&f%id%"
+  title-equipped: "&a已装备称号：&r%title%"
+  title-cleared: "&a已取消装备称号。"
+  title-no-access: "&c你还没有解锁这个称号。"
+  title-given: "&a已将称号 %title% &a发放给 %player%。"
+  title-taken: "&a已收回玩家 %player% &a的称号 %title%。"
+  nickname-updated: "&a昵称已更新为：%name%"
+  nickname-reset: "&a昵称和名字颜色已恢复默认。"
+  invalid-nickname: "&c昵称格式不正确，长度不能超过 %max% 个字符。"
+  invalid-color: "&c颜色格式不正确。可使用 &fred、&f&a、&f#55ccff &c或渐变。"
+  color-updated: "&a名字颜色已更新为：%name%"
+  target-not-found: "&c玩家不在线：&f%player%"
+  help:
+    - "&8&m----------------------------------------"
+    - "&bSimpMC-Title &7玩家展示管理"
+    - "&f/smtitle menu &7打开称号选择界面"
+    - "&f/smtitle colors &7打开名字颜色界面"
+    - "&f/smtitle list &7查看称号列表"
+    - "&f/smtitle equip <id> &7装备称号"
+    - "&f/smtitle unequip &7取消装备称号"
+    - "&f/smtitle nickname <内容> &7修改昵称"
+    - "&f/smtitle color <颜色> &7修改名字颜色"
+    - "&f/smtitle resetname &7恢复默认名字"
+    - "&8&m----------------------------------------"
+  admin-help:
+    - "&c管理员命令："
+    - "&f/smtitle give <玩家> <称号> [天数]"
+    - "&f/smtitle take <玩家> <称号>"
+    - "&f/smtitle set <玩家> <称号>"
+    - "&f/smtitle nickname <玩家> <内容>"
+    - "&f/smtitle color <玩家> <颜色>"
+    - "&f/smtitle resetname <玩家>"
+    - "&f/smtitle reload"

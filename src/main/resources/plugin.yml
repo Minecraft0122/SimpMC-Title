@@ -1,0 +1,31 @@
+name: SimpMC-Title
+version: 1.0.0
+main: cn.simpmc.title.SimpMCTitlePlugin
+api-version: '1.20'
+author: SimpMC
+description: 称号、昵称与玩家展示管理插件
+softdepend:
+  - PlaceholderAPI
+commands:
+  simpmctitle:
+    description: 管理称号、昵称和玩家展示效果
+    aliases:
+      - smtitle
+      - smctitle
+    usage: /smtitle help
+permissions:
+  simpmctitle.use:
+    description: 使用 SimpMC-Title 的玩家功能
+    default: true
+  simpmctitle.nickname:
+    description: 修改自己的昵称和名字颜色
+    default: true
+  simpmctitle.admin:
+    description: 管理玩家称号、昵称和名字颜色
+    default: op
+  simpmctitle.reload:
+    description: 重载 SimpMC-Title 配置
+    default: op
+  simpmctitle.title.*:
+    description: 使用所有配置中的称号
+    default: false
