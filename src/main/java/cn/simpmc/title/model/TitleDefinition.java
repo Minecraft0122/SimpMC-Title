@@ -8,13 +8,22 @@ public final class TitleDefinition {
     private final String description;
     private final String permission;
     private final Material icon;
+    private final boolean purchaseEnabled;
+    private final int purchaseDays;
+    private final double goldPrice;
+    private final long internalPrice;
 
-    public TitleDefinition(String id, String display, String description, String permission, Material icon) {
+    public TitleDefinition(String id, String display, String description, String permission, Material icon,
+                           boolean purchaseEnabled, int purchaseDays, double goldPrice, long internalPrice) {
         this.id = id;
         this.display = display;
         this.description = description;
         this.permission = permission;
         this.icon = icon;
+        this.purchaseEnabled = purchaseEnabled;
+        this.purchaseDays = purchaseDays;
+        this.goldPrice = goldPrice;
+        this.internalPrice = internalPrice;
     }
 
     public String getId() {
@@ -35,5 +44,29 @@ public final class TitleDefinition {
 
     public Material getIcon() {
         return icon;
+    }
+
+    public boolean isPurchaseEnabled() {
+        return purchaseEnabled;
+    }
+
+    public int getPurchaseDays() {
+        return purchaseDays;
+    }
+
+    public double getGoldPrice() {
+        return goldPrice;
+    }
+
+    public long getInternalPrice() {
+        return internalPrice;
+    }
+
+    public boolean isGoldPurchasable() {
+        return purchaseEnabled && Double.isFinite(goldPrice) && goldPrice > 0D;
+    }
+
+    public boolean isInternalPurchasable() {
+        return purchaseEnabled && internalPrice > 0L;
     }
 }

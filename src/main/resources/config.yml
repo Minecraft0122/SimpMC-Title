@@ -1,4 +1,4 @@
-# SimpMC-Title 1.0.0
+# SimpMC-Title 1.1.0
 # 文本支持传统颜色代码，例如 &a；也支持 RGB，例如 &#55ccff 或 <#55ccff>。
 
 language: zh_CN
@@ -24,22 +24,81 @@ nickname:
   pattern: "^[\\p{L}\\p{N}_\\- ]+$"
   default-color: "<white>"
 
+# 称号文本内容策略。策略会在启动和重载时校验 titles.*.display，违规称号不会加载。
+content:
+  enabled: true
+  max-length: 24
+  allow-placeholders: false
+  # 允许 Unicode 字母、数字、空格、常用括号和标点。颜色代码会在校验前移除。
+  allowed-pattern: "^[\\p{L}\\p{N}\\p{Zs}\\[\\]【】()（）_+\\-·.!?！？:：]+$"
+  banned-words:
+    - "管理员"
+    - "服主"
+    - "作弊"
+    - "外挂"
+  banned-patterns: []
+
+# 经济设置。金币需要服务器安装 Vault 以及一个 Vault Economy 提供者；内部货币由本插件保存。
+economy:
+  # 未填写支付方式时使用：gold 或 internal。
+  default-purchase-method: internal
+  purchase:
+    # 限时称号重复购买时是否延长有效期；永久称号不会重复扣款。
+    allow-renewal: true
+  gold:
+    enabled: true
+    purchase-enabled: true
+    exchange-enabled: true
+  internal:
+    enabled: true
+    purchase-enabled: true
+    name: "称号币"
+    initial-balance: 0
+  exchange:
+    enabled: true
+    # 消耗多少金币兑换 1 个内部货币，兑换结果向下取整。
+    gold-per-internal: 100.0
+    # 单次兑换的最低金币数量。
+    minimum-gold: 100.0
+
+# 审计日志使用 JSON Lines 格式，每次行为一行，方便检索和导入其他工具。
+audit:
+  enabled: true
+  file: logs/actions.log
+  max-file-size-mb: 10
+  command-limit: 10
+
 titles:
   newbie:
     display: "&8[&7新手&8]"
     description: "刚刚来到服务器的玩家"
     icon: NAME_TAG
     permission: ""
+    purchase:
+      enabled: false
+      days: 0
+      gold: 0
+      internal: 0
   explorer:
     display: "&8[&#55ccff探索者&8]"
     description: "喜欢发现新世界"
     icon: COMPASS
     permission: "simpmctitle.title.explorer"
+    purchase:
+      enabled: true
+      days: 0
+      gold: 5000.0
+      internal: 50
   supporter:
     display: "&8[&d支持者&8]"
     description: "感谢你对服务器的支持"
     icon: DIAMOND
     permission: "simpmctitle.title.supporter"
+    purchase:
+      enabled: true
+      days: 30
+      gold: 15000.0
+      internal: 150
 
 colors:
   - "<white>"
@@ -66,16 +125,43 @@ messages:
   title-no-access: "&c你还没有解锁这个称号。"
   title-given: "&a已将称号 %title% &a发放给 %player%。"
   title-taken: "&a已收回玩家 %player% &a的称号 %title%。"
+  title-take-failed: "&c玩家没有拥有这个称号：&f%id%"
   nickname-updated: "&a昵称已更新为：%name%"
   nickname-reset: "&a昵称和名字颜色已恢复默认。"
   invalid-nickname: "&c昵称格式不正确，长度不能超过 %max% 个字符。"
   invalid-color: "&c颜色格式不正确。可使用 &fred、&f&a、&f#55ccff &c或渐变。"
   color-updated: "&a名字颜色已更新为：%name%"
   target-not-found: "&c玩家不在线：&f%player%"
+  purchase-success-gold: "&a购买成功：%title% &a，花费 &f%gold% &a金币，获得%days%。"
+  purchase-success-internal: "&a购买成功：%title% &a，花费 &f%internal% &a%currency%，获得%days%。"
+  purchase-not-for-sale: "&c这个称号当前不可购买。"
+  purchase-already-owned: "&e你已经拥有这个称号；限时称号可按配置重复购买续期。"
+  gold-purchase-disabled: "&c金币购买功能已关闭。"
+  internal-purchase-disabled: "&c内部货币购买功能已关闭。"
+  economy-unavailable: "&c金币经济不可用，请联系管理员检查 Vault 和经济插件。"
+  insufficient-gold: "&c金币不足，需要 &f%gold% &c金币。"
+  insufficient-internal: "&c%currency%不足，需要 &f%internal% &c个。"
+  purchase-invalid-price: "&c这个称号没有配置有效的支付价格。"
+  transaction-failed: "&c交易失败，未完成购买。"
+  invalid-purchase-method: "&c支付方式无效，可选择 gold 或 internal。"
+  balance: "&7金币：&f%gold% &7| %currency%：&f%internal% &7| Vault：&f%vault%"
+  exchange-success: "&a兑换成功：花费 &f%gold% &a金币，获得 &f%internal% &a%currency%。当前金币：&f%balance%&a。"
+  exchange-disabled: "&c金币兑换内部货币功能已关闭。"
+  exchange-invalid-amount: "&c兑换数量无效，请输入正数或 all。"
+  exchange-too-small: "&c兑换数量太小，至少需要 &f%gold% &c金币，且兑换结果必须至少为 1 个%currency%。"
+  invalid-currency-amount: "&c内部货币数量必须是非负整数。"
+  currency-insufficient: "&c玩家的%currency%不足。"
+  currency-operation-failed: "&c内部货币操作失败。"
+  currency-updated: "&a已为 %player% 执行内部货币操作，变更 &f%amount% &a，当前余额 &f%balance%&a。"
+  invalid-days: "&c天数必须是 0 或正整数。"
   help:
     - "&8&m----------------------------------------"
     - "&bSimpMC-Title &7玩家展示管理"
     - "&f/smtitle menu &7打开称号选择界面"
+    - "&f/smtitle shop &7打开称号商城"
+    - "&f/smtitle buy <id> [gold|internal] &7购买称号"
+    - "&f/smtitle balance &7查看金币和内部货币余额"
+    - "&f/smtitle exchange <数量|all> &7金币兑换内部货币"
     - "&f/smtitle colors &7打开名字颜色界面"
     - "&f/smtitle list &7查看称号列表"
     - "&f/smtitle equip <id> &7装备称号"
@@ -89,6 +175,8 @@ messages:
     - "&f/smtitle give <玩家> <称号> [天数]"
     - "&f/smtitle take <玩家> <称号>"
     - "&f/smtitle set <玩家> <称号>"
+    - "&f/smtitle currency <give|take|set> <玩家> <数量>"
+    - "&f/smtitle audit [关键词]"
     - "&f/smtitle nickname <玩家> <内容>"
     - "&f/smtitle color <玩家> <颜色>"
     - "&f/smtitle resetname <玩家>"

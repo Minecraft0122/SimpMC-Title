@@ -9,6 +9,7 @@ public final class PlayerProfile {
     private String nickname = "";
     private String nameColor = "<white>";
     private String activeTitle = "";
+    private long internalBalance;
     private final Map<String, Long> ownedTitles = new LinkedHashMap<>();
 
     public PlayerProfile(UUID uuid) {
@@ -43,6 +44,30 @@ public final class PlayerProfile {
         this.activeTitle = activeTitle == null ? "" : activeTitle;
     }
 
+    public long getInternalBalance() {
+        return internalBalance;
+    }
+
+    public void setInternalBalance(long internalBalance) {
+        this.internalBalance = Math.max(0L, internalBalance);
+    }
+
+    public boolean withdrawInternal(long amount) {
+        if (amount < 0L || internalBalance < amount) {
+            return false;
+        }
+        internalBalance -= amount;
+        return true;
+    }
+
+    public boolean depositInternal(long amount) {
+        if (amount < 0L || Long.MAX_VALUE - internalBalance < amount) {
+            return false;
+        }
+        internalBalance += amount;
+        return true;
+    }
+
     public Map<String, Long> getOwnedTitles() {
         return ownedTitles;
     }
@@ -63,8 +88,8 @@ public final class PlayerProfile {
         return false;
     }
 
-    public void purgeExpired() {
-        ownedTitles.entrySet().removeIf(entry -> entry.getValue() != 0L
+    public boolean purgeExpired() {
+        return ownedTitles.entrySet().removeIf(entry -> entry.getValue() != 0L
                 && entry.getValue() <= System.currentTimeMillis());
     }
 }

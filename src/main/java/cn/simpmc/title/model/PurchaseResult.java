@@ -1,0 +1,15 @@
+package cn.simpmc.title.model;
+
+public enum PurchaseResult {
+    SUCCESS,
+    TITLE_NOT_FOUND,
+    NOT_FOR_SALE,
+    ALREADY_OWNED,
+    GOLD_DISABLED,
+    INTERNAL_DISABLED,
+    ECONOMY_UNAVAILABLE,
+    INSUFFICIENT_GOLD,
+    INSUFFICIENT_INTERNAL,
+    INVALID_PRICE,
+    TRANSACTION_FAILED
+}

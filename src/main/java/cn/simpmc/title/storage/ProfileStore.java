@@ -43,6 +43,9 @@ public final class ProfileStore {
         profile.setNickname(data.getString(root + ".nickname", ""));
         profile.setNameColor(data.getString(root + ".name-color", "<white>"));
         profile.setActiveTitle(data.getString(root + ".active-title", ""));
+        long initialBalance = plugin.getConfig().getLong("economy.internal.initial-balance", 0L);
+        profile.setInternalBalance(data.contains(root + ".internal-balance")
+                ? data.getLong(root + ".internal-balance") : Math.max(0L, initialBalance));
 
         ConfigurationSection titles = data.getConfigurationSection(root + ".titles");
         if (titles != null) {
@@ -60,6 +63,7 @@ public final class ProfileStore {
         data.set(root + ".nickname", profile.getNickname());
         data.set(root + ".name-color", profile.getNameColor());
         data.set(root + ".active-title", profile.getActiveTitle());
+        data.set(root + ".internal-balance", profile.getInternalBalance());
         for (Map.Entry<String, Long> entry : profile.getOwnedTitles().entrySet()) {
             data.set(root + ".titles." + entry.getKey(), entry.getValue());
         }

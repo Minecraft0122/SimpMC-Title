@@ -1,0 +1,126 @@
+name: Smoke Test and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  smoke-test:
+    name: Build and smoke test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.project.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Run smoke test
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n '0,/<version>[^<]*<\/version>/s/.*<version>\([^<]*\)<\/version>.*/\1/p' pom.xml)"
+          JAR="target/SimpMC-Title-${VERSION}.jar"
+          test -n "$VERSION"
+          test -f "$JAR"
+          unzip -p "$JAR" plugin.yml | grep -q "^version: ${VERSION}$"
+          unzip -p "$JAR" plugin.yml | grep -q '^name: SimpMC-Title$'
+          unzip -p "$JAR" config.yml | grep -q '^economy:$'
+          unzip -l "$JAR" | grep -q 'cn/simpmc/title/economy/EconomyService.class'
+          ! unzip -l "$JAR" | grep -Eq '(^|/)(net/milkbowl|me/clip|org/bukkit)/'
+
+          SMOKE_DIR="$(mktemp -d)"
+          trap 'rm -rf "$SMOKE_DIR"' EXIT
+          cat > "$SMOKE_DIR/SmokeTest.java" <<'EOF'
+          import cn.simpmc.title.model.PlayerProfile;
+          import cn.simpmc.title.model.PurchaseMethod;
+          import java.util.UUID;
+
+          public final class SmokeTest {
+              public static void main(String[] args) {
+                  PlayerProfile profile = new PlayerProfile(UUID.randomUUID());
+                  if (!profile.depositInternal(10L) || profile.getInternalBalance() != 10L) {
+                      throw new AssertionError("internal currency deposit failed");
+                  }
+                  if (profile.withdrawInternal(11L) || !profile.withdrawInternal(4L)
+                          || profile.getInternalBalance() != 6L) {
+                      throw new AssertionError("internal currency withdrawal failed");
+                  }
+                  profile.grantTitle("timed", System.currentTimeMillis() - 1L);
+                  if (profile.ownsTitle("timed")) {
+                      throw new AssertionError("expired title remained active");
+                  }
+                  if (PurchaseMethod.fromInput("金币") != PurchaseMethod.GOLD
+                          || PurchaseMethod.fromInput("内部货币") != PurchaseMethod.INTERNAL) {
+                      throw new AssertionError("payment method parsing failed");
+                  }
+              }
+          }
+          EOF
+          javac --release 17 -cp target/classes -d "$SMOKE_DIR" "$SMOKE_DIR/SmokeTest.java"
+          java -ea -cp "target/classes:$SMOKE_DIR" SmokeTest
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload tested JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: tested-plugin-jar
+          path: target/SimpMC-Title-*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Export project version
+        id: project
+        shell: bash
+        run: |
+          VERSION="$(sed -n '0,/<version>[^<]*<\/version>/s/.*<version>\([^<]*\)<\/version>.*/\1/p' pom.xml)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Publish GitHub Release
+    needs: smoke-test
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download tested JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: tested-plugin-jar
+          path: target
+
+      - name: Verify release input
+        shell: bash
+        env:
+          VERSION: ${{ needs.smoke-test.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -n "$VERSION"
+          test -f "target/SimpMC-Title-$VERSION.jar"
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.smoke-test.outputs.version }}
+          name: SimpMC-Title ${{ needs.smoke-test.outputs.version }}
+          body_path: RELEASE_NOTES_v${{ needs.smoke-test.outputs.version }}.md
+          generate_release_notes: true
+          files: target/SimpMC-Title-${{ needs.smoke-test.outputs.version }}.jar

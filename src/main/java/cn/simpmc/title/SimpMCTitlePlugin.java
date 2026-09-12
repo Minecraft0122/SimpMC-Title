@@ -1,25 +1,40 @@
 package cn.simpmc.title;
 
 import cn.simpmc.title.command.SimpMCTitleCommand;
+import cn.simpmc.title.economy.EconomyService;
 import cn.simpmc.title.gui.GuiService;
 import cn.simpmc.title.listener.DisplayListener;
 import cn.simpmc.title.listener.MenuListener;
+import cn.simpmc.title.logging.AuditLogger;
+import cn.simpmc.title.model.ExchangeOutcome;
+import cn.simpmc.title.model.ExchangeResult;
+import cn.simpmc.title.model.PurchaseMethod;
+import cn.simpmc.title.model.PurchaseResult;
+import cn.simpmc.title.model.TitleDefinition;
 import cn.simpmc.title.placeholder.SimpMCExpansion;
 import cn.simpmc.title.storage.ProfileStore;
+import cn.simpmc.title.util.TextUtil;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class SimpMCTitlePlugin extends JavaPlugin {
     private ProfileStore profileStore;
     private TitleManager titleManager;
     private GuiService guiService;
+    private EconomyService economyService;
+    private AuditLogger auditLogger;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        auditLogger = new AuditLogger(this);
+        economyService = new EconomyService(this);
         profileStore = new ProfileStore(this);
-        titleManager = new TitleManager(this, profileStore);
+        titleManager = new TitleManager(this, profileStore, economyService, auditLogger);
         guiService = new GuiService(this, titleManager);
 
         SimpMCTitleCommand command = new SimpMCTitleCommand(this, titleManager, guiService);
@@ -62,6 +77,14 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
         return guiService;
     }
 
+    public EconomyService getEconomyService() {
+        return economyService;
+    }
+
+    public AuditLogger getAuditLogger() {
+        return auditLogger;
+    }
+
     public String message(String key) {
         return getConfig().getString("messages." + key, "");
     }
@@ -69,5 +92,58 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
     public void send(CommandSender sender, String key) {
         String prefix = key.equals("help") || key.equals("admin-help") ? "" : message("prefix");
         sender.sendMessage(cn.simpmc.title.util.TextUtil.colorize(prefix + message(key)));
+    }
+
+    public void send(CommandSender sender, String key, Map<String, String> replacements) {
+        String value = message(key);
+        for (Map.Entry<String, String> entry : replacements.entrySet()) {
+            value = value.replace(entry.getKey(), entry.getValue());
+        }
+        sender.sendMessage(TextUtil.colorize(message("prefix") + value));
+    }
+
+    public void sendPurchaseResult(CommandSender sender, PurchaseResult result, TitleDefinition title,
+                                   PurchaseMethod method) {
+        String key = switch (result) {
+            case SUCCESS -> method == PurchaseMethod.GOLD ? "purchase-success-gold" : "purchase-success-internal";
+            case TITLE_NOT_FOUND -> "title-not-found";
+            case NOT_FOR_SALE -> "purchase-not-for-sale";
+            case ALREADY_OWNED -> "purchase-already-owned";
+            case GOLD_DISABLED -> "gold-purchase-disabled";
+            case INTERNAL_DISABLED -> "internal-purchase-disabled";
+            case ECONOMY_UNAVAILABLE -> "economy-unavailable";
+            case INSUFFICIENT_GOLD -> "insufficient-gold";
+            case INSUFFICIENT_INTERNAL -> "insufficient-internal";
+            case INVALID_PRICE -> "purchase-invalid-price";
+            case TRANSACTION_FAILED -> "transaction-failed";
+        };
+        Map<String, String> replacements = new LinkedHashMap<>();
+        replacements.put("%id%", title == null ? "" : title.getId());
+        replacements.put("%title%", title == null ? "" : title.getDisplay());
+        replacements.put("%gold%", title == null ? "-" : TextUtil.formatMoney(title.getGoldPrice()));
+        replacements.put("%internal%", title == null ? "-" : String.valueOf(title.getInternalPrice()));
+        replacements.put("%currency%", titleManager == null ? "称号币" : titleManager.getInternalCurrencyName());
+        replacements.put("%days%", title == null || title.getPurchaseDays() <= 0
+                ? "永久" : title.getPurchaseDays() + " 天");
+        send(sender, key, replacements);
+    }
+
+    public void sendExchangeResult(CommandSender sender, ExchangeOutcome outcome) {
+        String key = switch (outcome.result()) {
+            case SUCCESS -> "exchange-success";
+            case DISABLED -> "exchange-disabled";
+            case ECONOMY_UNAVAILABLE -> "economy-unavailable";
+            case INVALID_AMOUNT -> "exchange-invalid-amount";
+            case TOO_SMALL -> "exchange-too-small";
+            case INSUFFICIENT_GOLD -> "insufficient-gold";
+            case TRANSACTION_FAILED -> "transaction-failed";
+        };
+        Map<String, String> replacements = new LinkedHashMap<>();
+        replacements.put("%gold%", TextUtil.formatMoney(outcome.goldSpent()));
+        replacements.put("%internal%", String.valueOf(outcome.internalAdded()));
+        replacements.put("%balance%", TextUtil.formatMoney(outcome.goldBalance()));
+        replacements.put("%currency-balance%", String.valueOf(outcome.internalBalance()));
+        replacements.put("%currency%", titleManager == null ? "称号币" : titleManager.getInternalCurrencyName());
+        send(sender, key, replacements);
     }
 }

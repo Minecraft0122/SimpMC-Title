@@ -2,6 +2,7 @@ package cn.simpmc.title.util;
 
 import org.bukkit.ChatColor;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -83,6 +84,13 @@ public final class TextUtil {
         String value = input.replace("%1$s", "\u0001").replace("%2$s", "\u0002");
         value = value.replace("%", "%%");
         return value.replace("\u0001", "%1$s").replace("\u0002", "%2$s");
+    }
+
+    public static String formatMoney(double amount) {
+        if (!Double.isFinite(amount)) {
+            return "-";
+        }
+        return BigDecimal.valueOf(amount).stripTrailingZeros().toPlainString();
     }
 
     public static String normalizeColor(String input) {

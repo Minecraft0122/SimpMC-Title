@@ -1,14 +1,15 @@
 name: SimpMC-Title
-version: 1.0.0
+version: 1.1.0
 main: cn.simpmc.title.SimpMCTitlePlugin
 api-version: '1.20'
 author: SimpMC
-description: 称号、昵称与玩家展示管理插件
+description: 称号商城、双货币、昵称与玩家展示管理插件
 softdepend:
   - PlaceholderAPI
+  - Vault
 commands:
   simpmctitle:
-    description: 管理称号、昵称和玩家展示效果
+    description: 管理称号商城、称号、昵称和玩家展示效果
     aliases:
       - smtitle
       - smctitle
@@ -20,6 +21,21 @@ permissions:
   simpmctitle.nickname:
     description: 修改自己的昵称和名字颜色
     default: true
+  simpmctitle.shop:
+    description: 打开称号商城
+    default: true
+  simpmctitle.purchase:
+    description: 购买称号
+    default: true
+  simpmctitle.balance:
+    description: 查看金币和插件内部货币余额
+    default: true
+  simpmctitle.exchange:
+    description: 将金币兑换为插件内部货币
+    default: true
+  simpmctitle.audit:
+    description: 查看称号插件审计记录
+    default: op
   simpmctitle.admin:
     description: 管理玩家称号、昵称和名字颜色
     default: op
