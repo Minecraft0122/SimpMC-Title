@@ -40,6 +40,7 @@ jobs:
           test -f "$JAR"
           unzip -p "$JAR" plugin.yml | grep -q "^version: ${VERSION}$"
           unzip -p "$JAR" plugin.yml | grep -q '^name: SimpMC-Title$'
+          unzip -p "$JAR" plugin.yml | grep -q '^folia-supported: true$'
           unzip -p "$JAR" config.yml | grep -q '^economy:$'
           unzip -l "$JAR" | grep -q 'cn/simpmc/title/economy/EconomyService.class'
           ! unzip -l "$JAR" | grep -Eq '(^|/)(net/milkbowl|me/clip|org/bukkit)/'

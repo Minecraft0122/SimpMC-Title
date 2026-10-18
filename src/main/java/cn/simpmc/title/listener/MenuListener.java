@@ -52,7 +52,15 @@ public final class MenuListener implements Listener {
                 titleManager.clearTitle(player);
                 player.sendMessage(TextUtil.colorize(plugin.message("prefix") + plugin.message("title-cleared")));
                 player.closeInventory();
-            } else if (event.getRawSlot() == 53) {
+            } else if (event.getRawSlot() == 45 && holder.getPage() > 0) {
+                plugin.getGuiService().openTitles(player, holder.getPage() - 1);
+            } else if (event.getRawSlot() == 53 && isPageButton(event)) {
+                plugin.getGuiService().openTitles(player, holder.getPage() + 1);
+            } else if (event.getRawSlot() == 47) {
+                plugin.getGuiService().openShop(player);
+            } else if (event.getRawSlot() == 48) {
+                plugin.getGuiService().openColors(player);
+            } else if (event.getRawSlot() == 51) {
                 player.closeInventory();
             }
         } else if (event.getInventory().getHolder() instanceof ColorMenuHolder holder) {
@@ -63,12 +71,18 @@ public final class MenuListener implements Listener {
                 player.sendMessage(TextUtil.colorize(plugin.message("prefix")
                         + plugin.message("color-updated").replace("%name%", titleManager.getDisplayName(player))));
                 player.closeInventory();
-            } else if (event.getRawSlot() == 22) {
+            } else if (event.getRawSlot() == 49) {
                 titleManager.updateColor(player, "<white>");
                 player.sendMessage(TextUtil.colorize(plugin.message("prefix") + plugin.message("color-updated")
                         .replace("%name%", titleManager.getDisplayName(player))));
                 player.closeInventory();
-            } else if (event.getRawSlot() == 26) {
+            } else if (event.getRawSlot() == 45 && holder.getPage() > 0) {
+                plugin.getGuiService().openColors(player, holder.getPage() - 1);
+            } else if (event.getRawSlot() == 53 && isPageButton(event)) {
+                plugin.getGuiService().openColors(player, holder.getPage() + 1);
+            } else if (event.getRawSlot() == 47) {
+                plugin.getGuiService().openTitles(player);
+            } else if (event.getRawSlot() == 51) {
                 player.closeInventory();
             }
         } else if (event.getInventory().getHolder() instanceof ShopMenuHolder holder) {
@@ -76,6 +90,12 @@ public final class MenuListener implements Listener {
             String titleId = holder.getTitle(event.getRawSlot());
             if (titleId != null) {
                 plugin.getGuiService().openPurchase(player, titleId);
+            } else if (event.getRawSlot() == 45 && holder.getPage() > 0) {
+                plugin.getGuiService().openShop(player, holder.getPage() - 1);
+            } else if (event.getRawSlot() == 53 && isPageButton(event)) {
+                plugin.getGuiService().openShop(player, holder.getPage() + 1);
+            } else if (event.getRawSlot() == 47) {
+                plugin.getGuiService().openTitles(player);
             } else if (event.getRawSlot() == 49) {
                 Map<String, String> replacements = new LinkedHashMap<>();
                 replacements.put("%gold%", TextUtil.formatMoney(titleManager.getGoldBalance(player)));
@@ -83,7 +103,7 @@ public final class MenuListener implements Listener {
                 replacements.put("%currency%", titleManager.getInternalCurrencyName());
                 replacements.put("%vault%", titleManager.isEconomyAvailable() ? "已连接" : "未连接");
                 plugin.send(player, "balance", replacements);
-            } else if (event.getRawSlot() == 53) {
+            } else if (event.getRawSlot() == 51) {
                 player.closeInventory();
             }
         } else if (event.getInventory().getHolder() instanceof PurchaseMenuHolder holder) {
@@ -112,5 +132,10 @@ public final class MenuListener implements Listener {
                 || event.getInventory().getHolder() instanceof PurchaseMenuHolder) {
             event.setCancelled(true);
         }
+    }
+
+    private boolean isPageButton(InventoryClickEvent event) {
+        return event.getCurrentItem() != null
+                && event.getCurrentItem().getType() == org.bukkit.Material.PAPER;
     }
 }

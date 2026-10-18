@@ -9,6 +9,8 @@ public final class PlayerProfile {
     private String nickname = "";
     private String nameColor = "<white>";
     private String activeTitle = "";
+    private String customTitle = "";
+    private long activeTitleExpiresAt;
     private long internalBalance;
     private final Map<String, Long> ownedTitles = new LinkedHashMap<>();
 
@@ -42,6 +44,22 @@ public final class PlayerProfile {
 
     public void setActiveTitle(String activeTitle) {
         this.activeTitle = activeTitle == null ? "" : activeTitle;
+    }
+
+    public String getCustomTitle() {
+        return customTitle;
+    }
+
+    public void setCustomTitle(String customTitle) {
+        this.customTitle = customTitle == null ? "" : customTitle;
+    }
+
+    public long getActiveTitleExpiresAt() {
+        return activeTitleExpiresAt;
+    }
+
+    public void setActiveTitleExpiresAt(long activeTitleExpiresAt) {
+        this.activeTitleExpiresAt = Math.max(0L, activeTitleExpiresAt);
     }
 
     public long getInternalBalance() {

@@ -1,4 +1,4 @@
-# SimpMC-Title 1.1.0
+# SimpMC-Title 1.2.0
 # 文本支持传统颜色代码，例如 &a；也支持 RGB，例如 &#55ccff 或 <#55ccff>。
 
 language: zh_CN
@@ -6,7 +6,7 @@ language: zh_CN
 display:
   # 默认显示的称号 ID。设置为空字符串即可关闭默认称号。
   default-title: newbie
-  title-separator: " &7"
+  title-separator: " "
   chat:
     enabled: true
     # %title% 和 %name% 会被替换；%2$s 必须保留，它代表聊天内容。
@@ -19,6 +19,8 @@ display:
     format: "%title%%name%"
 
 nickname:
+  # 昵称修改默认关闭；启用后开放 nickname、color 和 resetname 命令。
+  enabled: false
   max-length: 16
   # 只允许字母、数字、下划线、短横线、空格和中文等 Unicode 字符。
   pattern: "^[\\p{L}\\p{N}_\\- ]+$"
@@ -121,6 +123,9 @@ messages:
   reloaded: "&a配置已重载。"
   title-not-found: "&c没有找到称号：&f%id%"
   title-equipped: "&a已装备称号：&r%title%"
+  title-set: "&a已为玩家设置称号：&r%title% &7有效期：%days%"
+  invalid-custom-title: "&c自定义称号格式不正确或包含不允许的内容。"
+  nickname-disabled: "&c昵称功能当前已关闭。"
   title-cleared: "&a已取消装备称号。"
   title-no-access: "&c你还没有解锁这个称号。"
   title-given: "&a已将称号 %title% &a发放给 %player%。"
@@ -166,18 +171,13 @@ messages:
     - "&f/smtitle list &7查看称号列表"
     - "&f/smtitle equip <id> &7装备称号"
     - "&f/smtitle unequip &7取消装备称号"
-    - "&f/smtitle nickname <内容> &7修改昵称"
-    - "&f/smtitle color <颜色> &7修改名字颜色"
-    - "&f/smtitle resetname &7恢复默认名字"
     - "&8&m----------------------------------------"
   admin-help:
     - "&c管理员命令："
     - "&f/smtitle give <玩家> <称号> [天数]"
     - "&f/smtitle take <玩家> <称号>"
-    - "&f/smtitle set <玩家> <称号>"
+    - "&f/smtitle set <玩家> <称号 ID>"
     - "&f/smtitle currency <give|take|set> <玩家> <数量>"
     - "&f/smtitle audit [关键词]"
-    - "&f/smtitle nickname <玩家> <内容>"
-    - "&f/smtitle color <玩家> <颜色>"
-    - "&f/smtitle resetname <玩家>"
+    - "&f/smtitle set <玩家> <称号文本> <天数> &7设置自定义称号；0 为永久"
     - "&f/smtitle reload"

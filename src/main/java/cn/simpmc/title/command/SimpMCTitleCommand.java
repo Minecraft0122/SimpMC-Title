@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUBCOMMANDS = List.of(
             "help", "menu", "shop", "colors", "list", "buy", "balance", "exchange", "equip", "unequip",
-            "nickname", "color", "resetname", "give", "take", "set", "currency", "audit", "reload");
+            "color", "resetname", "give", "take", "set", "currency", "audit", "reload");
 
     private final SimpMCTitlePlugin plugin;
     private final TitleManager titleManager;
@@ -47,6 +47,11 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
         }
 
         String subcommand = args[0].toLowerCase(Locale.ROOT);
+        if (List.of("nickname", "color", "resetname").contains(subcommand)
+                && !plugin.getConfig().getBoolean("nickname.enabled", false)) {
+            plugin.send(sender, "nickname-disabled");
+            return true;
+        }
         switch (subcommand) {
             case "menu" -> {
                 Player player = requirePlayer(sender);
@@ -205,19 +210,21 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return;
         }
         String value = join(args, start);
-        boolean success = titleManager.updateNickname(target, value);
-        if (!success) {
-            if (adminForm) {
-                logAdmin(sender, "admin.nickname", target, "invalid", Map.of("nickname", value));
+        executeForTarget(target, () -> {
+            boolean success = titleManager.updateNickname(target, value);
+            if (!success) {
+                if (adminForm) {
+                    logAdmin(sender, "admin.nickname", target, "invalid", Map.of("nickname", value));
+                }
+                plugin.send(sender, "invalid-nickname", Map.of(
+                        "%max%", String.valueOf(plugin.getConfig().getInt("nickname.max-length", 16))));
+                return;
             }
-            plugin.send(sender, "invalid-nickname", Map.of(
-                    "%max%", String.valueOf(plugin.getConfig().getInt("nickname.max-length", 16))));
-            return;
-        }
-        if (adminForm) {
-            logAdmin(sender, "admin.nickname", target, "success", Map.of("nickname", value));
-        }
-        plugin.send(sender, "nickname-updated", Map.of("%name%", titleManager.getDisplayName(target)));
+            if (adminForm) {
+                logAdmin(sender, "admin.nickname", target, "success", Map.of("nickname", value));
+            }
+            plugin.send(sender, "nickname-updated", Map.of("%name%", titleManager.getDisplayName(target)));
+        });
     }
 
     private void color(CommandSender sender, String[] args) {
@@ -242,17 +249,19 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return;
         }
         String value = join(args, valueIndex);
-        if (!titleManager.updateColor(target, value)) {
-            if (adminForm) {
-                logAdmin(sender, "admin.color", target, "invalid", Map.of("color", value));
+        executeForTarget(target, () -> {
+            if (!titleManager.updateColor(target, value)) {
+                if (adminForm) {
+                    logAdmin(sender, "admin.color", target, "invalid", Map.of("color", value));
+                }
+                plugin.send(sender, "invalid-color");
+                return;
             }
-            plugin.send(sender, "invalid-color");
-            return;
-        }
-        if (adminForm) {
-            logAdmin(sender, "admin.color", target, "success", Map.of("color", value));
-        }
-        plugin.send(sender, "color-updated", Map.of("%name%", titleManager.getDisplayName(target)));
+            if (adminForm) {
+                logAdmin(sender, "admin.color", target, "success", Map.of("color", value));
+            }
+            plugin.send(sender, "color-updated", Map.of("%name%", titleManager.getDisplayName(target)));
+        });
     }
 
     private void resetName(CommandSender sender, String[] args) {
@@ -274,11 +283,13 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
         if (target == null) {
             return;
         }
-        titleManager.resetNickname(target);
-        if (adminForm) {
-            logAdmin(sender, "admin.reset-name", target, "success", Map.of());
-        }
-        plugin.send(sender, "nickname-reset");
+        executeForTarget(target, () -> {
+            titleManager.resetNickname(target);
+            if (adminForm) {
+                logAdmin(sender, "admin.reset-name", target, "success", Map.of());
+            }
+            plugin.send(sender, "nickname-reset");
+        });
     }
 
     private void give(CommandSender sender, String[] args) {
@@ -294,14 +305,16 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return;
         }
         TitleDefinition title = titleManager.getTitle(args[2]);
-        boolean success = title != null && titleManager.grant(target, title.getId(), days);
-        logAdmin(sender, "admin.give-title", target, success ? "success" : "failed", Map.of(
-                "title_id", args[2], "days", days));
-        if (!success) {
-            plugin.send(sender, "title-not-found", Map.of("%id%", args[2]));
-            return;
-        }
-        plugin.send(sender, "title-given", Map.of("%title%", title.getDisplay(), "%player%", target.getName()));
+        executeForTarget(target, () -> {
+            boolean success = title != null && titleManager.grant(target, title.getId(), days);
+            logAdmin(sender, "admin.give-title", target, success ? "success" : "failed", Map.of(
+                    "title_id", args[2], "days", days));
+            if (!success) {
+                plugin.send(sender, "title-not-found", Map.of("%id%", args[2]));
+                return;
+            }
+            plugin.send(sender, "title-given", Map.of("%title%", title.getDisplay(), "%player%", target.getName()));
+        });
     }
 
     private void take(CommandSender sender, String[] args) {
@@ -313,15 +326,17 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return;
         }
         TitleDefinition title = titleManager.getTitle(args[2]);
-        boolean success = title != null && titleManager.take(target, args[2]);
-        logAdmin(sender, "admin.take-title", target, success ? "success" : "failed",
-                Map.of("title_id", args[2]));
-        if (!success) {
-            plugin.send(sender, title == null ? "title-not-found" : "title-take-failed",
-                    Map.of("%id%", args[2]));
-            return;
-        }
-        plugin.send(sender, "title-taken", Map.of("%title%", title.getDisplay(), "%player%", target.getName()));
+        executeForTarget(target, () -> {
+            boolean success = title != null && titleManager.take(target, args[2]);
+            logAdmin(sender, "admin.take-title", target, success ? "success" : "failed",
+                    Map.of("title_id", args[2]));
+            if (!success) {
+                plugin.send(sender, title == null ? "title-not-found" : "title-take-failed",
+                        Map.of("%id%", args[2]));
+                return;
+            }
+            plugin.send(sender, "title-taken", Map.of("%title%", title.getDisplay(), "%player%", target.getName()));
+        });
     }
 
     private void set(CommandSender sender, String[] args) {
@@ -332,16 +347,41 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
         if (target == null) {
             return;
         }
-        TitleDefinition title = titleManager.getTitle(args[2]);
-        boolean success = title != null && titleManager.grant(target, title.getId(), 0)
-                && titleManager.forceEquip(target, title.getId());
-        logAdmin(sender, "admin.set-title", target, success ? "success" : "failed",
-                Map.of("title_id", args[2]));
-        if (!success) {
-            plugin.send(sender, "title-not-found", Map.of("%id%", args[2]));
+        int days = 0;
+        int titleEnd = args.length;
+        if (args.length >= 4 && args[args.length - 1].matches("-?\\d+")) {
+            try {
+                days = Integer.parseInt(args[args.length - 1]);
+                if (days < 0 || days > 36500) {
+                    throw new NumberFormatException();
+                }
+            } catch (NumberFormatException exception) {
+                plugin.send(sender, "invalid-days");
+                return;
+            }
+            titleEnd--;
+        }
+        String requested = String.join(" ", Arrays.copyOfRange(args, 2, titleEnd));
+        TitleDefinition title = titleEnd == 3 ? titleManager.getTitle(requested) : null;
+        String display = title == null ? requested : title.getDisplay();
+        String titleId = title == null ? titleManager.registerCustomTitle(display) : title.getId();
+        if (titleId == null) {
+            plugin.send(sender, "invalid-custom-title");
             return;
         }
-        plugin.send(sender, "title-equipped", Map.of("%title%", title.getDisplay()));
+        int expiresInDays = days;
+        executeForTarget(target, () -> {
+            boolean success = titleManager.forceEquip(target, titleId, expiresInDays);
+            logAdmin(sender, "admin.set-title", target, success ? "success" : "failed",
+                    Map.of("title_id", titleId, "title", display, "days", expiresInDays));
+            if (!success) {
+                plugin.send(sender, "title-not-found", Map.of("%id%", titleId));
+                return;
+            }
+            plugin.send(sender, "title-set", Map.of(
+                    "%title%", display,
+                    "%days%", expiresInDays == 0 ? "永久" : expiresInDays + " 天"));
+        });
     }
 
     private void currency(CommandSender sender, String[] args) {
@@ -367,28 +407,30 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             plugin.send(sender, "invalid-currency-amount");
             return;
         }
-        long before = titleManager.getInternalBalance(target);
-        boolean success = switch (action) {
-            case "give" -> titleManager.giveInternalBalance(target, amount);
-            case "take" -> titleManager.takeInternalBalance(target, amount);
-            case "set" -> titleManager.setInternalBalance(target, amount);
-            default -> false;
-        };
-        long after = titleManager.getInternalBalance(target);
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("operation", action);
-        details.put("amount", amount);
-        details.put("before", before);
-        details.put("after", after);
-        details.put("result", success ? "success" : "failed");
-        plugin.getAuditLogger().logCommand("admin.currency", sender, target, details);
-        if (!success) {
-            plugin.send(sender, action.equals("take") ? "currency-insufficient" : "currency-operation-failed");
-            return;
-        }
-        plugin.send(sender, "currency-updated", Map.of(
-                "%player%", target.getName(), "%amount%", String.valueOf(amount), "%balance%", String.valueOf(after),
-                "%currency%", titleManager.getInternalCurrencyName()));
+        executeForTarget(target, () -> {
+            long before = titleManager.getInternalBalance(target);
+            boolean success = switch (action) {
+                case "give" -> titleManager.giveInternalBalance(target, amount);
+                case "take" -> titleManager.takeInternalBalance(target, amount);
+                case "set" -> titleManager.setInternalBalance(target, amount);
+                default -> false;
+            };
+            long after = titleManager.getInternalBalance(target);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("operation", action);
+            details.put("amount", amount);
+            details.put("before", before);
+            details.put("after", after);
+            details.put("result", success ? "success" : "failed");
+            plugin.getAuditLogger().logCommand("admin.currency", sender, target, details);
+            if (!success) {
+                plugin.send(sender, action.equals("take") ? "currency-insufficient" : "currency-operation-failed");
+                return;
+            }
+            plugin.send(sender, "currency-updated", Map.of(
+                    "%player%", target.getName(), "%amount%", String.valueOf(amount),
+                    "%balance%", String.valueOf(after), "%currency%", titleManager.getInternalCurrencyName()));
+        });
     }
 
     private void audit(CommandSender sender, String[] args) {
@@ -490,6 +532,10 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
         plugin.getAuditLogger().logCommand(action, sender, target, values);
     }
 
+    private void executeForTarget(Player target, Runnable action) {
+        target.getScheduler().run(plugin, task -> action.run(), null);
+    }
+
     private String join(String[] args, int start) {
         return String.join(" ", Arrays.copyOfRange(args, start, args.length));
     }
@@ -497,7 +543,11 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return partial(SUBCOMMANDS, args[0]);
+            List<String> commands = new ArrayList<>(SUBCOMMANDS);
+            if (plugin.getConfig().getBoolean("nickname.enabled", false)) {
+                commands.addAll(List.of("nickname", "color", "resetname"));
+            }
+            return partial(commands, args[0]);
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
         if ((subcommand.equals("equip") || subcommand.equals("buy")) && args.length == 2) {
@@ -524,7 +574,8 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return partial(onlineNames(), args[2]);
         }
         if ((subcommand.equals("nickname") || subcommand.equals("color") || subcommand.equals("resetname"))
-                && args.length == 2 && sender.hasPermission("simpmctitle.admin")) {
+                && args.length == 2 && plugin.getConfig().getBoolean("nickname.enabled", false)
+                && sender.hasPermission("simpmctitle.admin")) {
             return partial(onlineNames(), args[1]);
         }
         if (subcommand.equals("audit") && args.length == 2) {

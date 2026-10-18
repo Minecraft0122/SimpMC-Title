@@ -1,7 +1,8 @@
 name: SimpMC-Title
-version: 1.1.0
+version: 1.2.0
 main: cn.simpmc.title.SimpMCTitlePlugin
 api-version: '1.20'
+folia-supported: true
 author: SimpMC
 description: 称号商城、双货币、昵称与玩家展示管理插件
 softdepend:

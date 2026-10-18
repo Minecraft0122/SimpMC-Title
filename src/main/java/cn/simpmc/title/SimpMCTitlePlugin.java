@@ -45,7 +45,7 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
         }
         getCommand("simpmctitle").setExecutor(command);
         getCommand("simpmctitle").setTabCompleter(command);
-        getServer().getPluginManager().registerEvents(new DisplayListener(this, titleManager), this);
+        getServer().getPluginManager().registerEvents(new DisplayListener(titleManager), this);
         getServer().getPluginManager().registerEvents(new MenuListener(this, titleManager), this);
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {

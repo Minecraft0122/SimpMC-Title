@@ -8,7 +8,16 @@ import java.util.Map;
 
 public final class ShopMenuHolder implements InventoryHolder {
     private final Map<Integer, String> titleBySlot = new HashMap<>();
+    private final int page;
     private Inventory inventory;
+
+    public ShopMenuHolder(int page) {
+        this.page = page;
+    }
+
+    public int getPage() {
+        return page;
+    }
 
     public void setInventory(Inventory inventory) {
         this.inventory = inventory;

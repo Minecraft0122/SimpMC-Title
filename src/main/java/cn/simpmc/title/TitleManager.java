@@ -20,6 +20,13 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -40,7 +47,10 @@ public final class TitleManager {
     private final AuditLogger auditLogger;
     private final TitleContentPolicy contentPolicy;
     private final Map<UUID, PlayerProfile> onlineProfiles = new ConcurrentHashMap<>();
-    private final Map<String, TitleDefinition> titles = new LinkedHashMap<>();
+    private final Map<UUID, DisplaySnapshot> displaySnapshots = new ConcurrentHashMap<>();
+    private volatile Map<String, TitleDefinition> titles = Map.of();
+    private volatile boolean chatEnabled;
+    private volatile String chatFormat;
 
     public TitleManager(SimpMCTitlePlugin plugin, ProfileStore store, EconomyService economyService,
                         AuditLogger auditLogger) {
@@ -60,14 +70,17 @@ public final class TitleManager {
         store.reload();
         reloadTitles();
         for (Player player : Bukkit.getOnlinePlayers()) {
-            applyDisplay(player);
+            scheduleDisplayUpdate(player);
         }
     }
 
     private void reloadTitles() {
-        titles.clear();
+        chatEnabled = plugin.getConfig().getBoolean("display.chat.enabled", true);
+        chatFormat = plugin.getConfig().getString("display.chat.format", "%title%%name% &8» &r%2$s");
+        Map<String, TitleDefinition> loadedTitles = new LinkedHashMap<>();
         ConfigurationSection section = plugin.getConfig().getConfigurationSection("titles");
         if (section == null) {
+            titles = Map.of();
             return;
         }
         for (String configuredId : section.getKeys(false)) {
@@ -96,9 +109,10 @@ public final class TitleManager {
             if (internalPrice < 0L) {
                 internalPrice = -1L;
             }
-            titles.put(id, new TitleDefinition(id, display, description, permission, icon,
+            loadedTitles.put(id, new TitleDefinition(id, display, description, permission, icon,
                     purchaseEnabled, purchaseDays, goldPrice, internalPrice));
         }
+        titles = Collections.unmodifiableMap(loadedTitles);
     }
 
     public void handleJoin(Player player) {
@@ -107,11 +121,12 @@ public final class TitleManager {
         if (profile.purgeExpired()) {
             store.save(profile);
         }
-        applyDisplay(player);
+        scheduleDisplayUpdate(player);
     }
 
     public void handleQuit(Player player) {
         PlayerProfile profile = onlineProfiles.remove(player.getUniqueId());
+        displaySnapshots.remove(player.getUniqueId());
         if (profile != null) {
             store.save(profile);
         }
@@ -127,7 +142,7 @@ public final class TitleManager {
     }
 
     public Map<String, TitleDefinition> getTitles() {
-        return Collections.unmodifiableMap(titles);
+        return titles;
     }
 
     public List<TitleDefinition> getTitleList() {
@@ -162,6 +177,7 @@ public final class TitleManager {
         }
         PlayerProfile profile = getProfile(player);
         profile.setActiveTitle(title.getId());
+        profile.setActiveTitleExpiresAt(0L);
         store.save(profile);
         applyDisplay(player);
         auditLogger.logPlayer("title.equip", player, null, Map.of(
@@ -177,7 +193,100 @@ public final class TitleManager {
             return false;
         }
         PlayerProfile profile = getProfile(player);
+        profile.setCustomTitle("");
         profile.setActiveTitle(title.getId());
+        profile.setActiveTitleExpiresAt(0L);
+        store.save(profile);
+        applyDisplay(player);
+        return true;
+    }
+
+    public String registerCustomTitle(String display) {
+        TitleContentPolicy.Validation validation = contentPolicy.validate(display);
+        if (!validation.valid()) {
+            return null;
+        }
+        for (TitleDefinition title : titles.values()) {
+            if (title.getDisplay().equals(display)) {
+                return title.getId();
+            }
+        }
+
+        String baseId = "custom-" + shortHash(display);
+        String id = baseId;
+        int suffix = 2;
+        while (getTitle(id) != null && !getTitle(id).getDisplay().equals(display)) {
+            id = baseId + "-" + suffix++;
+        }
+        if (getTitle(id) != null) {
+            return id;
+        }
+
+        Path configFile = plugin.getDataFolder().toPath().resolve("config.yml");
+        try {
+            String contents = Files.readString(configFile, StandardCharsets.UTF_8);
+            String updated = insertTitleEntry(contents, id, display);
+            Path temporaryFile = Files.createTempFile(configFile.getParent(), "config-", ".yml.tmp");
+            try {
+                Files.writeString(temporaryFile, updated, StandardCharsets.UTF_8);
+                try {
+                    Files.move(temporaryFile, configFile, StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException exception) {
+                    Files.move(temporaryFile, configFile, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(temporaryFile);
+            }
+            plugin.reloadConfig();
+            contentPolicy.reload();
+            reloadTitles();
+            return getTitle(id) == null ? null : id;
+        } catch (IOException exception) {
+            plugin.getLogger().severe("无法将称号写入 config.yml: " + exception.getMessage());
+            return null;
+        }
+    }
+
+    public boolean forceEquip(Player player, String id, int days) {
+        TitleDefinition title = getTitle(id);
+        if (title == null || days < 0) {
+            return false;
+        }
+        long expiresAt = days == 0 ? 0L : safeFutureTime(days);
+        PlayerProfile profile = getProfile(player);
+        profile.grantTitle(title.getId(), expiresAt);
+        profile.setCustomTitle("");
+        profile.setActiveTitle(title.getId());
+        profile.setActiveTitleExpiresAt(expiresAt);
+        store.save(profile);
+        applyDisplay(player);
+        if (expiresAt > 0L) {
+            long delayTicks = Math.max(1L, (expiresAt - System.currentTimeMillis()) / 50L);
+            player.getScheduler().runDelayed(plugin, task -> {
+                PlayerProfile current = getProfile(player);
+                if (title.getId().equals(current.getActiveTitle())
+                        && current.getActiveTitleExpiresAt() == expiresAt) {
+                    current.setActiveTitle("");
+                    current.setActiveTitleExpiresAt(0L);
+                    current.getOwnedTitles().remove(title.getId());
+                    store.save(current);
+                    applyDisplay(player);
+                }
+            }, null, delayTicks);
+        }
+        return true;
+    }
+
+    public boolean forceSetCustomTitle(Player player, String display) {
+        TitleContentPolicy.Validation validation = contentPolicy.validate(display);
+        if (!validation.valid()) {
+            return false;
+        }
+        PlayerProfile profile = getProfile(player);
+        profile.setActiveTitle("__custom__");
+        profile.setCustomTitle(display);
+        profile.setActiveTitleExpiresAt(0L);
         store.save(profile);
         applyDisplay(player);
         return true;
@@ -186,6 +295,8 @@ public final class TitleManager {
     public void clearTitle(Player player) {
         PlayerProfile profile = getProfile(player);
         profile.setActiveTitle(NO_TITLE);
+        profile.setCustomTitle("");
+        profile.setActiveTitleExpiresAt(0L);
         store.save(profile);
         applyDisplay(player);
         auditLogger.logPlayer("title.clear", player, null, Map.of("result", "success"));
@@ -484,8 +595,14 @@ public final class TitleManager {
 
     public String getActiveTitleDisplay(Player player) {
         PlayerProfile profile = getProfile(player);
+        if (expireActiveTitle(profile)) {
+            store.save(profile);
+        }
         if (NO_TITLE.equals(profile.getActiveTitle())) {
             return "";
+        }
+        if ("__custom__".equals(profile.getActiveTitle())) {
+            return profile.getCustomTitle();
         }
         TitleDefinition active = getTitle(profile.getActiveTitle());
         if (active != null && canUse(player, active)) {
@@ -496,8 +613,14 @@ public final class TitleManager {
 
     public String getActiveTitleDisplay(UUID uuid) {
         PlayerProfile profile = getStoredProfile(uuid);
+        if (expireActiveTitle(profile)) {
+            store.save(profile);
+        }
         if (NO_TITLE.equals(profile.getActiveTitle())) {
             return "";
+        }
+        if ("__custom__".equals(profile.getActiveTitle())) {
+            return profile.getCustomTitle();
         }
         TitleDefinition active = getTitle(profile.getActiveTitle());
         if (active != null && profileCanUseOffline(profile, active)) {
@@ -550,12 +673,15 @@ public final class TitleManager {
             store.save(profile);
         }
         String name = getDisplayName(player);
+        String title = TextUtil.colorize(getActiveTitleDisplay(player));
+        String formattedTitle = formatTitleSpacing(title);
+        displaySnapshots.put(player.getUniqueId(), new DisplaySnapshot(title, name));
         player.setDisplayName(name);
 
         if (plugin.getConfig().getBoolean("display.tab.enabled", true)) {
             String format = plugin.getConfig().getString("display.tab.format", "%title%%name%");
             player.setPlayerListName(TextUtil.colorize(format
-                    .replace("%title%", TextUtil.colorize(getActiveTitleDisplay(player)))
+                    .replace("%title%", formattedTitle)
                     .replace("%name%", name)));
         } else {
             player.setPlayerListName(name);
@@ -563,7 +689,7 @@ public final class TitleManager {
 
         if (plugin.getConfig().getBoolean("display.head.enabled", true)) {
             String format = plugin.getConfig().getString("display.head.format", "%title%%name%");
-            String head = format.replace("%title%", TextUtil.colorize(getActiveTitleDisplay(player)))
+            String head = format.replace("%title%", formattedTitle)
                     .replace("%name%", name);
             player.setCustomName(TextUtil.colorize(head));
             player.setCustomNameVisible(true);
@@ -574,14 +700,100 @@ public final class TitleManager {
     }
 
     public void formatChat(AsyncPlayerChatEvent event) {
-        if (!plugin.getConfig().getBoolean("display.chat.enabled", true)) {
+        if (!chatEnabled) {
             return;
         }
         Player player = event.getPlayer();
-        String format = plugin.getConfig().getString("display.chat.format", "%title%%name% &8» &r%2$s");
-        format = format.replace("%title%", TextUtil.colorize(getActiveTitleDisplay(player)))
-                .replace("%name%", getDisplayName(player));
+        DisplaySnapshot snapshot = displaySnapshots.get(player.getUniqueId());
+        if (snapshot == null) {
+            return;
+        }
+        String format = chatFormat;
+        format = format.replace("%title%", formatTitleSpacing(snapshot.title()))
+                .replace("%name%", snapshot.name());
         event.setFormat(TextUtil.escapeFormat(TextUtil.colorize(format)));
+    }
+
+    public void scheduleDisplayUpdate(Player player) {
+        player.getScheduler().run(plugin, task -> applyDisplay(player),
+                () -> displaySnapshots.remove(player.getUniqueId()));
+    }
+
+    private String formatTitleSpacing(String title) {
+        if (title == null || title.isEmpty()) {
+            return "";
+        }
+        return title + TextUtil.colorize(plugin.getConfig().getString("display.title-separator", " "));
+    }
+
+    private boolean expireActiveTitle(PlayerProfile profile) {
+        long expiresAt = profile.getActiveTitleExpiresAt();
+        if (expiresAt == 0L || expiresAt > System.currentTimeMillis()) {
+            return false;
+        }
+        profile.getOwnedTitles().remove(profile.getActiveTitle());
+        profile.setActiveTitle("");
+        profile.setActiveTitleExpiresAt(0L);
+        profile.setCustomTitle("");
+        return true;
+    }
+
+    private String insertTitleEntry(String contents, String id, String display) throws IOException {
+        String[] lines = contents.split("\\R", -1);
+        int titlesLine = -1;
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i].equals("titles:")) {
+                titlesLine = i;
+                break;
+            }
+        }
+        if (titlesLine < 0) {
+            throw new IOException("找不到顶层 titles 区块");
+        }
+        int insertLine = lines.length;
+        for (int i = titlesLine + 1; i < lines.length; i++) {
+            if (!lines[i].isBlank() && !lines[i].startsWith(" ") && !lines[i].startsWith("\t")
+                    && !lines[i].startsWith("#")) {
+                insertLine = i;
+                break;
+            }
+        }
+        int offset = 0;
+        for (int i = 0; i < insertLine; i++) {
+            offset += lines[i].length();
+            if (offset < contents.length()) {
+                if (contents.charAt(offset) == '\r') {
+                    offset++;
+                }
+                if (offset < contents.length() && contents.charAt(offset) == '\n') {
+                    offset++;
+                }
+            }
+        }
+        String newline = contents.contains("\r\n") ? "\r\n" : "\n";
+        String entry = "  " + id + ":" + newline
+                + "    display: '" + display.replace("'", "''") + "'" + newline
+                + "    description: ''" + newline
+                + "    icon: NAME_TAG" + newline
+                + "    purchase:" + newline
+                + "      enabled: true" + newline
+                + "      days: 0" + newline
+                + "      gold: -1" + newline
+                + "      internal: -1" + newline;
+        return contents.substring(0, offset) + entry + contents.substring(offset);
+    }
+
+    private String shortHash(String value) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder result = new StringBuilder(12);
+            for (int i = 0; i < 6; i++) {
+                result.append(String.format(Locale.ROOT, "%02x", hash[i]));
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 unavailable", exception);
+        }
     }
 
     public boolean isGoldPurchaseEnabled() {
@@ -693,5 +905,8 @@ public final class TitleManager {
 
     private String formatBalance(double balance) {
         return Double.isFinite(balance) ? TextUtil.formatMoney(balance) : "unavailable";
+    }
+
+    private record DisplaySnapshot(String title, String name) {
     }
 }

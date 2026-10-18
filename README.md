@@ -5,7 +5,8 @@ SimpMC-Title is a Paper plugin for managing player titles, nicknames, display co
 ## Features
 
 - Configurable titles with permissions, descriptions and icons.
-- Title selection GUI and title ownership stored in `players.yml`.
+- PlayerTitle-inspired title warehouse, shop and color GUIs with framed content areas, grouped status lore, balance previews and pagination.
+- Title ownership stored in `players.yml`.
 - Player title purchases using server gold through Vault or the built-in currency.
 - Configurable gold-to-internal-currency exchange rate, minimum exchange amount and renewal for timed titles.
 - JSON Lines audit records for purchases, exchanges, profile changes and administrator operations.
@@ -27,12 +28,10 @@ SimpMC-Title is a Paper plugin for managing player titles, nicknames, display co
 - `/smtitle list`
 - `/smtitle equip <id>`
 - `/smtitle unequip`
-- `/smtitle nickname <content>`
-- `/smtitle color <red|#55ccff|<gradient:#55ccff:#b36bff>>`
-- `/smtitle resetname`
 - `/smtitle give <player> <id> [days]`
 - `/smtitle take <player> <id>`
 - `/smtitle set <player> <id>`
+- `/smtitle set <player> <title text> [days]` for a validated custom title; `0` or omitted means permanent
 - `/smtitle reload`
 
 ## Economy
@@ -73,6 +72,8 @@ The `content` section validates configured title display text after color codes 
 - `%simpmctitle_has_title_<id>%`
 - `%simpmctitle_economy%`
 
-The project targets Paper 1.20.4 and Java 17. The generated JAR does not bundle Paper, PlaceholderAPI, Vault or an economy provider. Install those on the server when using the corresponding features.
+The project targets Paper 1.20.4 and Java 17, and declares Folia support. Player display updates use the entity scheduler and chat formatting reads a thread-safe display snapshot. The generated JAR does not bundle Paper, PlaceholderAPI, Vault or an economy provider. Install those on the server when using the corresponding features.
 
-The player commands use `simpmctitle.use`, `simpmctitle.shop`, `simpmctitle.purchase`, `simpmctitle.balance`, `simpmctitle.exchange` and `simpmctitle.nickname`. Administrator commands use `simpmctitle.admin` or the narrower `simpmctitle.reload` and `simpmctitle.audit` permissions.
+Nickname, color and resetname commands are disabled by default; set `nickname.enabled: true` to enable them. The player commands use `simpmctitle.use`, `simpmctitle.shop`, `simpmctitle.purchase`, `simpmctitle.balance`, `simpmctitle.exchange` and (when enabled) `simpmctitle.nickname`. Administrator commands use `simpmctitle.admin` or the narrower `simpmctitle.reload` and `simpmctitle.audit` permissions.
+
+When an administrator sets a custom title, the plugin appends its definition under `titles` in `config.yml`, preserving the existing file contents. The optional final `days` argument sets the active title expiration; `0` or omitting it means permanent.

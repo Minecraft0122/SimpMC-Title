@@ -1,6 +1,5 @@
 package cn.simpmc.title.listener;
 
-import cn.simpmc.title.SimpMCTitlePlugin;
 import cn.simpmc.title.TitleManager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -10,11 +9,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 public final class DisplayListener implements Listener {
-    private final SimpMCTitlePlugin plugin;
     private final TitleManager titleManager;
 
-    public DisplayListener(SimpMCTitlePlugin plugin, TitleManager titleManager) {
-        this.plugin = plugin;
+    public DisplayListener(TitleManager titleManager) {
         this.titleManager = titleManager;
     }
 
