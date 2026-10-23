@@ -70,7 +70,8 @@ public final class TextUtil {
         if (gradientMatcher.matches()) {
             return gradient(gradientMatcher.group(1), gradientMatcher.group(2), name == null ? "" : name);
         }
-        return colorize((color == null ? "<white>" : color) + (name == null ? "" : name));
+        String normalized = normalizeColor(color);
+        return colorize((normalized == null ? "<white>" : normalized) + (name == null ? "" : name));
     }
 
     public static String strip(String input) {
@@ -104,7 +105,7 @@ public final class TextUtil {
         if (value.matches("(?i)&#[0-9a-f]{6}")) {
             return value;
         }
-        if (value.matches("(?i)&[0-9a-fk-or]")) {
+        if (value.matches("(?i)&[0-9a-f]")) {
             return value;
         }
         if (value.matches("(?i)<#[0-9a-f]{6}>")
