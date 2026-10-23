@@ -26,8 +26,8 @@ import java.util.stream.Collectors;
 
 public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUBCOMMANDS = List.of(
-            "help", "menu", "shop", "colors", "list", "buy", "balance", "exchange", "equip", "unequip",
-            "color", "resetname", "give", "take", "set", "currency", "audit", "reload");
+            "menu", "help", "shop", "colors", "list", "buy", "balance", "exchange", "equip", "unequip",
+            "color", "resetname", "give", "take", "set", "group", "currency", "audit", "reload");
 
     private final SimpMCTitlePlugin plugin;
     private final TitleManager titleManager;
@@ -41,7 +41,14 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
+        if (args.length == 0) {
+            Player player = requirePlayer(sender);
+            if (player != null) {
+                guiService.openTitles(player);
+            }
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("help")) {
             sendHelp(sender);
             return true;
         }
@@ -83,12 +90,71 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             case "give" -> give(sender, args);
             case "take" -> take(sender, args);
             case "set" -> set(sender, args);
+            case "group" -> group(sender, args);
             case "currency" -> currency(sender, args);
             case "audit" -> audit(sender, args);
             case "reload" -> reload(sender);
             default -> plugin.send(sender, "unknown-command");
         }
         return true;
+    }
+
+    private void group(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) {
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage(TextUtil.colorize("&c用法：/smtitle group <create|delete|title|add|remove|list> ..."));
+            return;
+        }
+        String action = args[1].toLowerCase(Locale.ROOT);
+        if (action.equals("list")) {
+            sender.sendMessage(TextUtil.colorize("&b称号组：&f" + String.join(", ", titleManager.getTitleGroups())));
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(TextUtil.colorize("&c请指定称号组名称。"));
+            return;
+        }
+        String group = args[2];
+        if (!group.matches("[A-Za-z0-9_-]{1,32}")) {
+            sender.sendMessage(TextUtil.colorize("&c组名仅能包含字母、数字、下划线和短横线，长度最多 32。"));
+            return;
+        }
+        switch (action) {
+            case "create" -> sender.sendMessage(TextUtil.colorize(titleManager.createTitleGroup(group)
+                    ? "&a已创建称号组：&f" + group : "&c称号组已存在：&f" + group));
+            case "delete" -> sender.sendMessage(TextUtil.colorize(titleManager.deleteTitleGroup(group)
+                    ? "&a已删除称号组：&f" + group : "&c称号组不存在：&f" + group));
+            case "title" -> {
+                if (args.length < 4) {
+                    sender.sendMessage(TextUtil.colorize("&c用法：/smtitle group title <组名> <称号文本>"));
+                    return;
+                }
+                String title = join(args, 3);
+                sender.sendMessage(TextUtil.colorize(titleManager.setTitleGroupTitle(group, title)
+                        ? "&a已更新称号组 &f" + group + " &a的共享称号。"
+                        : "&c组不存在或称号文本无效。"));
+            }
+            case "add", "remove" -> {
+                if (args.length < 4) {
+                    sender.sendMessage(TextUtil.colorize("&c用法：/smtitle group " + action + " <组名> <在线玩家>"));
+                    return;
+                }
+                Player target = findTarget(sender, args[3]);
+                if (target == null) {
+                    return;
+                }
+                boolean changed = action.equals("add")
+                        ? titleManager.addTitleGroupMember(group, target)
+                        : titleManager.removeTitleGroupMember(group, target);
+                sender.sendMessage(TextUtil.colorize(changed
+                        ? "&a已" + (action.equals("add") ? "将 &f" + target.getName() + " &a加入" : "从")
+                                + "称号组 &f" + group + (action.equals("remove") ? " &a移除玩家。" : "。")
+                        : "&c操作失败，请确认组存在且成员状态正确。"));
+            }
+            default -> sender.sendMessage(TextUtil.colorize("&c用法：/smtitle group <create|delete|title|add|remove|list> ..."));
+        }
     }
 
     private void listTitles(CommandSender sender) {
@@ -300,20 +366,38 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
         if (target == null) {
             return;
         }
-        int days = parseDays(sender, args);
-        if (days < 0) {
-            return;
-        }
-        TitleDefinition title = titleManager.getTitle(args[2]);
-        executeForTarget(target, () -> {
-            boolean success = title != null && titleManager.grant(target, title.getId(), days);
-            logAdmin(sender, "admin.give-title", target, success ? "success" : "failed", Map.of(
-                    "title_id", args[2], "days", days));
-            if (!success) {
-                plugin.send(sender, "title-not-found", Map.of("%id%", args[2]));
+        int days = 0;
+        int titleEnd = args.length;
+        if (args.length >= 4 && args[args.length - 1].matches("-?\\d+")) {
+            try {
+                days = Integer.parseInt(args[args.length - 1]);
+                if (days < 0 || days > 36500) {
+                    throw new NumberFormatException();
+                }
+            } catch (NumberFormatException exception) {
+                plugin.send(sender, "invalid-days");
                 return;
             }
-            plugin.send(sender, "title-given", Map.of("%title%", title.getDisplay(), "%player%", target.getName()));
+            titleEnd--;
+        }
+        String requested = String.join(" ", Arrays.copyOfRange(args, 2, titleEnd));
+        TitleDefinition title = titleEnd == 3 ? titleManager.getTitle(requested) : null;
+        String titleId = title == null ? titleManager.registerCustomTitle(requested) : title.getId();
+        String display = title == null ? requested : title.getDisplay();
+        if (titleId == null) {
+            plugin.send(sender, "invalid-custom-title");
+            return;
+        }
+        int grantDays = days;
+        executeForTarget(target, () -> {
+            boolean success = titleManager.grant(target, titleId, grantDays);
+            logAdmin(sender, "admin.give-title", target, success ? "success" : "failed", Map.of(
+                    "title_id", titleId, "title", display, "days", grantDays));
+            if (!success) {
+                plugin.send(sender, "title-not-found", Map.of("%id%", titleId));
+                return;
+            }
+            plugin.send(sender, "title-given", Map.of("%title%", display, "%player%", target.getName()));
         });
     }
 
@@ -506,22 +590,6 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
         return target;
     }
 
-    private int parseDays(CommandSender sender, String[] args) {
-        if (args.length < 4) {
-            return 0;
-        }
-        try {
-            int days = Integer.parseInt(args[3]);
-            if (days < 0) {
-                throw new NumberFormatException();
-            }
-            return days;
-        } catch (NumberFormatException exception) {
-            plugin.send(sender, "invalid-days");
-            return -1;
-        }
-    }
-
     private void logAdmin(CommandSender sender, String action, Player target, String result,
                           Map<String, ?> details) {
         Map<String, Object> values = new LinkedHashMap<>();
@@ -550,6 +618,17 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return partial(commands, args[0]);
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
+        if (subcommand.equals("group") && args.length == 2 && sender.hasPermission("simpmctitle.admin")) {
+            return partial(List.of("create", "delete", "title", "add", "remove", "list"), args[1]);
+        }
+        if (subcommand.equals("group") && args.length == 3 && sender.hasPermission("simpmctitle.admin")
+                && !args[1].equalsIgnoreCase("list")) {
+            return partial(new ArrayList<>(titleManager.getTitleGroups()), args[2]);
+        }
+        if (subcommand.equals("group") && args.length == 4 && sender.hasPermission("simpmctitle.admin")
+                && List.of("add", "remove").contains(args[1].toLowerCase(Locale.ROOT))) {
+            return partial(onlineNames(), args[3]);
+        }
         if ((subcommand.equals("equip") || subcommand.equals("buy")) && args.length == 2) {
             return partial(new ArrayList<>(titleManager.getTitles().keySet()), args[1]);
         }

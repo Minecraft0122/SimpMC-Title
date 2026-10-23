@@ -9,9 +9,11 @@ import cn.simpmc.title.model.PurchaseMethod;
 import cn.simpmc.title.model.PurchaseResult;
 import cn.simpmc.title.model.TitleDefinition;
 import cn.simpmc.title.storage.ProfileStore;
+import cn.simpmc.title.storage.TitleGroupStore;
 import cn.simpmc.title.util.TextUtil;
 import cn.simpmc.title.util.TitleContentPolicy;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
@@ -43,6 +45,7 @@ public final class TitleManager {
 
     private final SimpMCTitlePlugin plugin;
     private final ProfileStore store;
+    private final TitleGroupStore groupStore;
     private final EconomyService economyService;
     private final AuditLogger auditLogger;
     private final TitleContentPolicy contentPolicy;
@@ -56,6 +59,7 @@ public final class TitleManager {
                         AuditLogger auditLogger) {
         this.plugin = plugin;
         this.store = store;
+        this.groupStore = new TitleGroupStore(plugin);
         this.economyService = economyService;
         this.auditLogger = auditLogger;
         this.contentPolicy = new TitleContentPolicy(plugin);
@@ -68,6 +72,7 @@ public final class TitleManager {
         economyService.refresh();
         auditLogger.reload();
         store.reload();
+        groupStore.reload();
         reloadTitles();
         for (Player player : Bukkit.getOnlinePlayers()) {
             scheduleDisplayUpdate(player);
@@ -202,6 +207,7 @@ public final class TitleManager {
     }
 
     public String registerCustomTitle(String display) {
+        display = withDefaultTitleColor(display);
         TitleContentPolicy.Validation validation = contentPolicy.validate(display);
         if (!validation.valid()) {
             return null;
@@ -279,13 +285,14 @@ public final class TitleManager {
     }
 
     public boolean forceSetCustomTitle(Player player, String display) {
-        TitleContentPolicy.Validation validation = contentPolicy.validate(display);
+        String normalized = withDefaultTitleColor(display);
+        TitleContentPolicy.Validation validation = contentPolicy.validate(normalized);
         if (!validation.valid()) {
             return false;
         }
         PlayerProfile profile = getProfile(player);
         profile.setActiveTitle("__custom__");
-        profile.setCustomTitle(display);
+        profile.setCustomTitle(normalized);
         profile.setActiveTitleExpiresAt(0L);
         store.save(profile);
         applyDisplay(player);
@@ -594,6 +601,10 @@ public final class TitleManager {
     }
 
     public String getActiveTitleDisplay(Player player) {
+        String groupTitle = groupStore.getTitle(player.getUniqueId());
+        if (!groupTitle.isBlank()) {
+            return withDefaultTitleColor(groupTitle);
+        }
         PlayerProfile profile = getProfile(player);
         if (expireActiveTitle(profile)) {
             store.save(profile);
@@ -612,6 +623,10 @@ public final class TitleManager {
     }
 
     public String getActiveTitleDisplay(UUID uuid) {
+        String groupTitle = groupStore.getTitle(uuid);
+        if (!groupTitle.isBlank()) {
+            return withDefaultTitleColor(groupTitle);
+        }
         PlayerProfile profile = getStoredProfile(uuid);
         if (expireActiveTitle(profile)) {
             store.save(profile);
@@ -676,21 +691,22 @@ public final class TitleManager {
         String title = TextUtil.colorize(getActiveTitleDisplay(player));
         String formattedTitle = formatTitleSpacing(title);
         displaySnapshots.put(player.getUniqueId(), new DisplaySnapshot(title, name));
-        player.setDisplayName(name);
+        String safeName = TextUtil.colorize("&r" + name);
+        player.setDisplayName(safeName);
 
         if (plugin.getConfig().getBoolean("display.tab.enabled", true)) {
             String format = plugin.getConfig().getString("display.tab.format", "%title%%name%");
             player.setPlayerListName(TextUtil.colorize(format
                     .replace("%title%", formattedTitle)
-                    .replace("%name%", name)));
+                    .replace("%name%", safeName)));
         } else {
-            player.setPlayerListName(name);
+            player.setPlayerListName(safeName);
         }
 
         if (plugin.getConfig().getBoolean("display.head.enabled", true)) {
             String format = plugin.getConfig().getString("display.head.format", "%title%%name%");
             String head = format.replace("%title%", formattedTitle)
-                    .replace("%name%", name);
+                    .replace("%name%", safeName);
             player.setCustomName(TextUtil.colorize(head));
             player.setCustomNameVisible(true);
         } else {
@@ -710,7 +726,7 @@ public final class TitleManager {
         }
         String format = chatFormat;
         format = format.replace("%title%", formatTitleSpacing(snapshot.title()))
-                .replace("%name%", snapshot.name());
+                .replace("%name%", TextUtil.colorize("&r" + snapshot.name()));
         event.setFormat(TextUtil.escapeFormat(TextUtil.colorize(format)));
     }
 
@@ -723,7 +739,72 @@ public final class TitleManager {
         if (title == null || title.isEmpty()) {
             return "";
         }
-        return title + TextUtil.colorize(plugin.getConfig().getString("display.title-separator", " "));
+        return title + TextUtil.colorize(plugin.getConfig().getString("display.title-separator", " "))
+                + ChatColor.RESET;
+    }
+
+    public boolean isValidCustomTitle(String display) {
+        return contentPolicy.validate(withDefaultTitleColor(display)).valid();
+    }
+
+    public boolean createTitleGroup(String group) {
+        return groupStore.create(group);
+    }
+
+    public boolean deleteTitleGroup(String group) {
+        boolean deleted = groupStore.delete(group);
+        if (deleted) {
+            refreshOnlineDisplays();
+        }
+        return deleted;
+    }
+
+    public boolean setTitleGroupTitle(String group, String title) {
+        String normalized = withDefaultTitleColor(title);
+        if (!contentPolicy.validate(normalized).valid() || !groupStore.setTitle(group, normalized)) {
+            return false;
+        }
+        refreshOnlineDisplays();
+        return true;
+    }
+
+    public boolean addTitleGroupMember(String group, Player player) {
+        boolean added = groupStore.addMember(group, player.getUniqueId());
+        if (added) {
+            scheduleDisplayUpdate(player);
+        }
+        return added;
+    }
+
+    public boolean removeTitleGroupMember(String group, Player player) {
+        boolean removed = groupStore.removeMember(group, player.getUniqueId());
+        if (removed) {
+            scheduleDisplayUpdate(player);
+        }
+        return removed;
+    }
+
+    public java.util.Set<String> getTitleGroups() {
+        return groupStore.getGroups();
+    }
+
+    private void refreshOnlineDisplays() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            scheduleDisplayUpdate(player);
+        }
+    }
+
+    private String withDefaultTitleColor(String title) {
+        if (title == null || title.isBlank()) {
+            return "";
+        }
+        String value = title.trim();
+        if (value.matches("(?is).*(?:&[0-9a-f]|&#[0-9a-f]{6}|§[0-9a-f]|<#[0-9a-f]{6}>|"
+                + "<(?:black|dark_blue|dark_green|dark_aqua|dark_red|dark_purple|gold|gray|dark_gray|blue|green|"
+                + "aqua|red|light_purple|yellow|white)>).*") ) {
+            return value;
+        }
+        return plugin.getConfig().getString("display.default-title-color", "&7") + value;
     }
 
     private boolean expireActiveTitle(PlayerProfile profile) {

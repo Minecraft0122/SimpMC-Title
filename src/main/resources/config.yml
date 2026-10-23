@@ -5,7 +5,9 @@ language: zh_CN
 
 display:
   # 默认显示的称号 ID。设置为空字符串即可关闭默认称号。
-  default-title: newbie
+  default-title: ""
+  # 自定义称号未指定颜色时使用的颜色。
+  default-title-color: "&7"
   title-separator: " "
   chat:
     enabled: true
@@ -70,38 +72,6 @@ audit:
   max-file-size-mb: 10
   command-limit: 10
 
-titles:
-  newbie:
-    display: "&8[&7新手&8]"
-    description: "刚刚来到服务器的玩家"
-    icon: NAME_TAG
-    permission: ""
-    purchase:
-      enabled: false
-      days: 0
-      gold: 0
-      internal: 0
-  explorer:
-    display: "&8[&#55ccff探索者&8]"
-    description: "喜欢发现新世界"
-    icon: COMPASS
-    permission: "simpmctitle.title.explorer"
-    purchase:
-      enabled: true
-      days: 0
-      gold: 5000.0
-      internal: 50
-  supporter:
-    display: "&8[&d支持者&8]"
-    description: "感谢你对服务器的支持"
-    icon: DIAMOND
-    permission: "simpmctitle.title.supporter"
-    purchase:
-      enabled: true
-      days: 30
-      gold: 15000.0
-      internal: 150
-
 colors:
   - "<white>"
   - "<gray>"
@@ -162,6 +132,7 @@ messages:
   help:
     - "&8&m----------------------------------------"
     - "&bSimpMC-Title &7玩家展示管理"
+    - "&f/smtitle &7打开称号选择界面"
     - "&f/smtitle menu &7打开称号选择界面"
     - "&f/smtitle shop &7打开称号商城"
     - "&f/smtitle buy <id> [gold|internal] &7购买称号"
@@ -174,10 +145,13 @@ messages:
     - "&8&m----------------------------------------"
   admin-help:
     - "&c管理员命令："
-    - "&f/smtitle give <玩家> <称号> [天数]"
+    - "&f/smtitle give <玩家> <称号文本> [天数] &7发放配置称号或直接输入称号文本"
     - "&f/smtitle take <玩家> <称号>"
     - "&f/smtitle set <玩家> <称号 ID>"
     - "&f/smtitle currency <give|take|set> <玩家> <数量>"
+    - "&f/smtitle group <create|delete|list> <组名>"
+    - "&f/smtitle group title <组名> <称号文本>"
+    - "&f/smtitle group <add|remove> <组名> <在线玩家>"
     - "&f/smtitle audit [关键词]"
     - "&f/smtitle set <玩家> <称号文本> <天数> &7设置自定义称号；0 为永久"
     - "&f/smtitle reload"
