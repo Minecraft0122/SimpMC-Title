@@ -642,8 +642,7 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
                 && args.length == 2) {
             return partial(onlineNames(), args[1]);
         }
-        if ((subcommand.equals("give") || subcommand.equals("take") || subcommand.equals("set"))
-                && args.length == 3) {
+        if ((subcommand.equals("take") || subcommand.equals("set")) && args.length == 3) {
             return partial(new ArrayList<>(titleManager.getTitles().keySet()), args[2]);
         }
         if (subcommand.equals("currency") && args.length == 2) {
