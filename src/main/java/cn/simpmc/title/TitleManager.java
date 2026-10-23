@@ -821,6 +821,16 @@ public final class TitleManager {
 
     private String insertTitleEntry(String contents, String id, String display) throws IOException {
         String[] lines = contents.split("\\R", -1);
+        String newline = contents.contains("\r\n") ? "\r\n" : "\n";
+        String entry = "  " + id + ":" + newline
+                + "    display: '" + display.replace("'", "''") + "'" + newline
+                + "    description: ''" + newline
+                + "    icon: NAME_TAG" + newline
+                + "    purchase:" + newline
+                + "      enabled: true" + newline
+                + "      days: 0" + newline
+                + "      gold: -1" + newline
+                + "      internal: -1" + newline;
         int titlesLine = -1;
         for (int i = 0; i < lines.length; i++) {
             if (lines[i].equals("titles:")) {
@@ -829,7 +839,9 @@ public final class TitleManager {
             }
         }
         if (titlesLine < 0) {
-            throw new IOException("找不到顶层 titles 区块");
+            String prefix = contents.isEmpty() || contents.endsWith("\n") || contents.endsWith("\r")
+                    ? contents : contents + newline;
+            return prefix + "titles:" + newline + entry;
         }
         int insertLine = lines.length;
         for (int i = titlesLine + 1; i < lines.length; i++) {
@@ -851,16 +863,6 @@ public final class TitleManager {
                 }
             }
         }
-        String newline = contents.contains("\r\n") ? "\r\n" : "\n";
-        String entry = "  " + id + ":" + newline
-                + "    display: '" + display.replace("'", "''") + "'" + newline
-                + "    description: ''" + newline
-                + "    icon: NAME_TAG" + newline
-                + "    purchase:" + newline
-                + "      enabled: true" + newline
-                + "      days: 0" + newline
-                + "      gold: -1" + newline
-                + "      internal: -1" + newline;
         return contents.substring(0, offset) + entry + contents.substring(offset);
     }
 
