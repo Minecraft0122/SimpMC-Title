@@ -17,6 +17,7 @@ SimpMC-Title is a Paper plugin for managing player titles, nicknames, display co
 - Shared title groups whose members display the same title.
 - Admin commands for granting, taking and forcing titles.
 - Optional PlaceholderAPI expansion.
+- Public Java API exposed through Bukkit's `ServicesManager` for title, profile, economy and title-group integrations.
 
 ## Commands
 
@@ -40,6 +41,8 @@ SimpMC-Title is a Paper plugin for managing player titles, nicknames, display co
 - `/smtitle group remove <group> <online player>`
 - `/smtitle group delete <group>`
 - `/smtitle group list`
+
+Other plugins can integrate with the public API documented in [API.md](API.md). The plugin registers `SimpMCTitleAPI` as a Bukkit service.
 
 The bundled `config.yml` starts without preset titles. Custom titles without an explicit color use `&7`. Group definitions and UUID membership are stored in `groups.yml`; each player can belong to one group, and the group's shared title takes priority over their personal title while assigned. Title changes synchronize to chat, the player list (Tab), and head display.
 

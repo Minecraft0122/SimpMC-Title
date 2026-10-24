@@ -524,6 +524,14 @@ public final class TitleManager {
         return profile.getOwnedTitles().size();
     }
 
+    public Map<String, Long> getOwnedTitles(UUID uuid) {
+        PlayerProfile profile = getStoredProfile(uuid);
+        if (profile.purgeExpired()) {
+            store.save(profile);
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(profile.getOwnedTitles()));
+    }
+
     public boolean setInternalBalance(Player player, long amount) {
         if (amount < 0L) {
             return false;
@@ -644,6 +652,15 @@ public final class TitleManager {
         return getDefaultTitleDisplay();
     }
 
+    public String getActiveTitleId(UUID uuid) {
+        PlayerProfile profile = getStoredProfile(uuid);
+        if (expireActiveTitle(profile)) {
+            store.save(profile);
+        }
+        String active = profile.getActiveTitle();
+        return active == null || NO_TITLE.equals(active) || "__custom__".equals(active) ? "" : active;
+    }
+
     public String getEffectiveName(Player player) {
         PlayerProfile profile = getProfile(player);
         return profile.getNickname().isBlank() ? player.getName() : profile.getNickname();
@@ -748,10 +765,16 @@ public final class TitleManager {
     }
 
     public boolean createTitleGroup(String group) {
+        if (!isValidGroupName(group)) {
+            return false;
+        }
         return groupStore.create(group);
     }
 
     public boolean deleteTitleGroup(String group) {
+        if (!isValidGroupName(group)) {
+            return false;
+        }
         boolean deleted = groupStore.delete(group);
         if (deleted) {
             refreshOnlineDisplays();
@@ -760,6 +783,9 @@ public final class TitleManager {
     }
 
     public boolean setTitleGroupTitle(String group, String title) {
+        if (!isValidGroupName(group)) {
+            return false;
+        }
         String normalized = withDefaultTitleColor(title);
         if (!contentPolicy.validate(normalized).valid() || !groupStore.setTitle(group, normalized)) {
             return false;
@@ -769,19 +795,43 @@ public final class TitleManager {
     }
 
     public boolean addTitleGroupMember(String group, Player player) {
-        boolean added = groupStore.addMember(group, player.getUniqueId());
+        return addTitleGroupMember(group, player.getUniqueId());
+    }
+
+    public boolean addTitleGroupMember(String group, UUID uuid) {
+        if (!isValidGroupName(group)) {
+            return false;
+        }
+        boolean added = groupStore.addMember(group, uuid);
         if (added) {
-            scheduleDisplayUpdate(player);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                scheduleDisplayUpdate(player);
+            }
         }
         return added;
     }
 
     public boolean removeTitleGroupMember(String group, Player player) {
-        boolean removed = groupStore.removeMember(group, player.getUniqueId());
+        return removeTitleGroupMember(group, player.getUniqueId());
+    }
+
+    public boolean removeTitleGroupMember(String group, UUID uuid) {
+        if (!isValidGroupName(group)) {
+            return false;
+        }
+        boolean removed = groupStore.removeMember(group, uuid);
         if (removed) {
-            scheduleDisplayUpdate(player);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                scheduleDisplayUpdate(player);
+            }
         }
         return removed;
+    }
+
+    public String getPlayerTitleGroup(UUID uuid) {
+        return groupStore.getGroup(uuid);
     }
 
     public java.util.Set<String> getTitleGroups() {
@@ -805,6 +855,10 @@ public final class TitleManager {
             return value;
         }
         return plugin.getConfig().getString("display.default-title-color", "&7") + value;
+    }
+
+    private boolean isValidGroupName(String group) {
+        return group != null && group.matches("[A-Za-z0-9_-]{1,32}");
     }
 
     private boolean expireActiveTitle(PlayerProfile profile) {

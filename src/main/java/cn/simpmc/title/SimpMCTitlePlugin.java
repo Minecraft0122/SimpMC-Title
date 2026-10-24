@@ -1,5 +1,7 @@
 package cn.simpmc.title;
 
+import cn.simpmc.title.api.SimpMCTitleAPI;
+import cn.simpmc.title.api.SimpMCTitleAPIImpl;
 import cn.simpmc.title.command.SimpMCTitleCommand;
 import cn.simpmc.title.economy.EconomyService;
 import cn.simpmc.title.gui.GuiService;
@@ -16,6 +18,7 @@ import cn.simpmc.title.storage.ProfileStore;
 import cn.simpmc.title.util.TextUtil;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.LinkedHashMap;
@@ -27,6 +30,7 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
     private GuiService guiService;
     private EconomyService economyService;
     private AuditLogger auditLogger;
+    private SimpMCTitleAPI api;
 
     @Override
     public void onEnable() {
@@ -35,6 +39,8 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
         economyService = new EconomyService(this);
         profileStore = new ProfileStore(this);
         titleManager = new TitleManager(this, profileStore, economyService, auditLogger);
+        api = new SimpMCTitleAPIImpl(this, titleManager);
+        getServer().getServicesManager().register(SimpMCTitleAPI.class, api, this, ServicePriority.Normal);
         guiService = new GuiService(this, titleManager);
 
         SimpMCTitleCommand command = new SimpMCTitleCommand(this, titleManager, guiService);
@@ -61,6 +67,9 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (api != null) {
+            getServer().getServicesManager().unregister(SimpMCTitleAPI.class, api);
+        }
         if (titleManager != null) {
             for (Player player : getServer().getOnlinePlayers()) {
                 titleManager.handleQuit(player);
@@ -71,6 +80,10 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
 
     public TitleManager getTitleManager() {
         return titleManager;
+    }
+
+    public SimpMCTitleAPI getApi() {
+        return api;
     }
 
     public GuiService getGuiService() {

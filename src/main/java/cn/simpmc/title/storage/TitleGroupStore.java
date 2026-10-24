@@ -98,17 +98,22 @@ public final class TitleGroupStore {
     }
 
     public synchronized String getTitle(UUID uuid) {
+        String group = getGroup(uuid);
+        return group == null ? "" : data.getString("groups." + group + ".title", "");
+    }
+
+    public synchronized String getGroup(UUID uuid) {
         ConfigurationSection groups = data.getConfigurationSection("groups");
         if (groups == null) {
-            return "";
+            return null;
         }
         String member = uuid.toString();
         for (String group : groups.getKeys(false)) {
             if (data.getStringList("groups." + group + ".members").contains(member)) {
-                return data.getString("groups." + group + ".title", "");
+                return group;
             }
         }
-        return "";
+        return null;
     }
 
     public synchronized Set<String> getGroups() {
