@@ -12,6 +12,7 @@ public final class PlayerProfile {
     private String customTitle = "";
     private long activeTitleExpiresAt;
     private long firstJoinedAt;
+    private boolean newcomerDefaultInitialized;
     private long internalBalance;
     private final Map<String, Long> ownedTitles = new LinkedHashMap<>();
 
@@ -69,6 +70,14 @@ public final class PlayerProfile {
 
     public long getFirstJoinedAt() {
         return firstJoinedAt;
+    }
+
+    public boolean isNewcomerDefaultInitialized() {
+        return newcomerDefaultInitialized;
+    }
+
+    public void setNewcomerDefaultInitialized(boolean initialized) {
+        this.newcomerDefaultInitialized = initialized;
     }
 
     public void setFirstJoinedAt(long firstJoinedAt) {

@@ -58,6 +58,13 @@ public final class SimpMCTitlePlugin extends JavaPlugin {
             new SimpMCExpansion(this).register();
             getLogger().info("PlaceholderAPI expansion 已启用。");
         }
+        if (getConfig().getBoolean("display.tab.enabled", true) && titleManager.usesExternalTabFormatting()) {
+            getLogger().info("TAB / TAB-Bridge 占位符模式：请将 TAB 的 tabprefix 设为 %simpmctitle_tab_prefix%，"
+                    + "customtabname 设为 %simpmctitle_tab_name%。接入说明见 TAB_BRIDGE.md。");
+            if (!getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+                getLogger().warning("TAB 占位符模式需要后端安装 PlaceholderAPI，否则称号无法传递给 TAB。");
+            }
+        }
 
         for (Player player : getServer().getOnlinePlayers()) {
             titleManager.handleJoin(player);

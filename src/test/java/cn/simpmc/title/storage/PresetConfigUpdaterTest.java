@@ -68,4 +68,19 @@ class PresetConfigUpdaterTest {
         assertEquals("&7[玩家]", YamlConfigEditor.parse(updated).getString("titles.default_player.display"));
         assertEquals(updated, PresetConfigUpdater.upgrade(updated));
     }
+
+    @Test
+    void tabMigrationOnlyAddsMissingKeysAndKeepsChoicesAndComments() throws Exception {
+        String original = "presets: {initialized: true}\ndisplay:\n  tab:\n"
+                + "    mode: native # retain\n    hide-player-title: false # retain\n"
+                + "messages:\n  title-cleared: custom # retain\n";
+        String updated = PresetConfigUpdater.upgrade(original);
+        assertTrue(updated.contains("mode: native # retain"));
+        assertTrue(updated.contains("hide-player-title: false # retain"));
+        assertTrue(updated.contains("title-cleared: custom # retain"));
+        YamlConfiguration config = YamlConfigEditor.parse(PresetConfigUpdater.upgrade("display: {tab: {enabled: false}}\n"));
+        assertEquals("auto", config.getString("display.tab.mode"));
+        assertTrue(config.getBoolean("display.tab.hide-player-title"));
+        assertFalse(config.getBoolean("display.tab.enabled"));
+    }
 }

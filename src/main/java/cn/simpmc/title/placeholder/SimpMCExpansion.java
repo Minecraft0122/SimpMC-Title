@@ -45,6 +45,13 @@ public final class SimpMCExpansion extends PlaceholderExpansion {
         }
         String fallbackName = player.getName() == null ? "" : player.getName();
         String normalized = params.toLowerCase(Locale.ROOT);
+        // TAB-Bridge refreshes asynchronously; these read precomputed immutable display values.
+        switch (normalized) {
+            case "tab_title": return titleManager.getTabTitleDisplay(player.getUniqueId());
+            case "tab_prefix": return titleManager.getTabTitlePrefix(player.getUniqueId());
+            case "tab_name": return titleManager.getTabDisplayName(player.getUniqueId());
+            default: break;
+        }
         if (normalized.startsWith("has_title_")) {
             String titleId = normalized.substring("has_title_".length());
             return String.valueOf(titleManager.getStoredProfile(player.getUniqueId()).ownsTitle(titleId));

@@ -1,5 +1,5 @@
 name: SimpMC-Title
-version: 1.4.0
+version: 1.5.0
 main: cn.simpmc.title.SimpMCTitlePlugin
 api-version: '1.20'
 folia-supported: true
@@ -8,6 +8,8 @@ description: 称号商城、双货币、昵称与玩家展示管理插件
 softdepend:
   - PlaceholderAPI
   - Vault
+  - TAB
+  - TAB-Bridge
 commands:
   simpmctitle:
     description: 管理称号商城、称号、昵称和玩家展示效果
@@ -16,6 +18,9 @@ commands:
       - smctitle
     usage: /smtitle help
 permissions:
+  simpmctitle.title.hide:
+    description: 允许手动取消称号后在聊天中不展示任何称号；默认包括 OP 均关闭
+    default: false
   simpmctitle.use:
     description: 使用 SimpMC-Title 的玩家功能
     default: true

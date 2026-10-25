@@ -57,11 +57,21 @@ public final class PresetConfigUpdater {
         }
         if (!config.contains("titles." + DEFAULT_TITLE_ID)) {
             updated = YamlConfigEditor.put(updated, "titles." + DEFAULT_TITLE_ID,
-                    title("&7[玩家]", "所有玩家均可使用；默认展示，可通过 /smtitle unequip 取消", "PLAYER_HEAD", 0));
+                    title("&7[玩家]", "所有玩家均可使用；聊天默认保底称号，Tab 默认隐藏", "PLAYER_HEAD", 0));
         }
         if (!config.contains("titles." + NEW_PLAYER_TITLE_ID)) {
             updated = YamlConfigEditor.put(updated, "titles." + NEW_PLAYER_TITLE_ID,
-                    title("&7[&f初来乍到&7]", "新玩家首次进入服务器后7天内可使用，到期自动回收", "NAME_TAG", 7));
+                    title("&7[&f初来乍到&7]", "新人首次进服默认佩戴，7天后自动回收；可手动取消或更换", "NAME_TAG", 7));
+        }
+        if (!config.contains("display.tab.mode")) {
+            updated = YamlConfigEditor.put(updated, "display.tab.mode", "auto");
+        }
+        if (!config.contains("display.tab.hide-player-title")) {
+            updated = YamlConfigEditor.put(updated, "display.tab.hide-player-title", true);
+        }
+        if (!config.contains("messages.title-cleared-chat-required")) {
+            updated = YamlConfigEditor.put(updated, "messages.title-cleared-chat-required",
+                    "&a已取消个人称号；聊天仍显示玩家称号，称号组仍优先生效。");
         }
         return updated;
     }

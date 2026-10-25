@@ -46,6 +46,7 @@ public final class ProfileStore {
         profile.setCustomTitle(data.getString(root + ".custom-title", ""));
         profile.setActiveTitleExpiresAt(data.getLong(root + ".active-title-expires-at", 0L));
         profile.setFirstJoinedAt(data.getLong(root + ".first-joined-at", 0L));
+        profile.setNewcomerDefaultInitialized(data.getBoolean(root + ".newcomer-default-initialized", false));
         long initialBalance = plugin.getConfig().getLong("economy.internal.initial-balance", 0L);
         profile.setInternalBalance(data.contains(root + ".internal-balance")
                 ? data.getLong(root + ".internal-balance") : Math.max(0L, initialBalance));
@@ -68,6 +69,7 @@ public final class ProfileStore {
         data.set(root + ".custom-title", profile.getCustomTitle());
         data.set(root + ".active-title-expires-at", profile.getActiveTitleExpiresAt());
         data.set(root + ".first-joined-at", profile.getFirstJoinedAt());
+        data.set(root + ".newcomer-default-initialized", profile.isNewcomerDefaultInitialized());
         data.set(root + ".internal-balance", profile.getInternalBalance());
         for (Map.Entry<String, Long> entry : profile.getOwnedTitles().entrySet()) {
             data.set(root + ".titles." + entry.getKey(), entry.getValue());

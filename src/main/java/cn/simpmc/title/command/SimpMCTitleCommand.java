@@ -248,7 +248,8 @@ public final class SimpMCTitleCommand implements CommandExecutor, TabCompleter {
             return;
         }
         titleManager.clearTitle(player);
-        plugin.send(sender, "title-cleared");
+        plugin.send(sender, player.hasPermission(TitleManager.HIDE_CHAT_TITLE_PERMISSION)
+                ? "title-cleared" : "title-cleared-chat-required");
     }
 
     private void nickname(CommandSender sender, String[] args) {

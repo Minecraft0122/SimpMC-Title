@@ -49,6 +49,7 @@ public final class TitleManager {
     private static final long DAY_MILLIS = 86_400_000L;
     private static final String NO_TITLE = "__none__";
     private static final String DEFAULT_TITLE_ID = PresetConfigUpdater.DEFAULT_TITLE_ID;
+    public static final String HIDE_CHAT_TITLE_PERMISSION = "simpmctitle.title.hide";
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
 
     private final SimpMCTitlePlugin plugin;
@@ -65,6 +66,7 @@ public final class TitleManager {
     private volatile boolean chatEnabled;
     private volatile String chatFormat;
     private volatile String chatTitleSeparator;
+    private volatile String requiredChatTitle = "§7[玩家]";
 
     public TitleManager(SimpMCTitlePlugin plugin, ProfileStore store, EconomyService economyService,
                         AuditLogger auditLogger) {
@@ -102,6 +104,7 @@ public final class TitleManager {
         ConfigurationSection section = plugin.getConfig().getConfigurationSection("titles");
         if (section == null) {
             titles = Map.of();
+            requiredChatTitle = "§7[玩家]";
             return;
         }
         for (String configuredId : section.getKeys(false)) {
@@ -135,6 +138,8 @@ public final class TitleManager {
                     purchaseEnabled, purchaseDays, goldPrice, internalPrice, newPlayerDays));
         }
         titles = Collections.unmodifiableMap(loadedTitles);
+        TitleDefinition playerTitle = getTitle(DEFAULT_TITLE_ID);
+        requiredChatTitle = TextUtil.colorize(playerTitle == null ? "&7[玩家]" : playerTitle.getDisplay());
     }
 
     public void handleJoin(Player player) {
@@ -737,23 +742,74 @@ public final class TitleManager {
         return title + separator + name;
     }
 
+    /** The chat-only fallback does not change the player's saved selection. */
+    public String getChatTitleDisplay(Player player) {
+        return resolveChatTitle(player, TextUtil.colorize(getActiveTitleDisplay(player)));
+    }
+
+    private String resolveChatTitle(Player player, String title) {
+        return title.isEmpty() && !player.hasPermission(HIDE_CHAT_TITLE_PERMISSION)
+                ? requiredChatTitle : title;
+    }
+
+    // TAB / TAB-Bridge may request placeholders asynchronously. Read immutable snapshots only.
+    public String getTabTitleDisplay(UUID uuid) {
+        DisplaySnapshot snapshot = displaySnapshots.get(uuid);
+        return snapshot == null ? "" : snapshot.tabTitle();
+    }
+
+    public String getTabTitlePrefix(UUID uuid) {
+        DisplaySnapshot snapshot = displaySnapshots.get(uuid);
+        return snapshot == null ? "" : snapshot.tabPrefix();
+    }
+
+    public String getTabDisplayName(UUID uuid) {
+        DisplaySnapshot snapshot = displaySnapshots.get(uuid);
+        return snapshot == null ? "" : snapshot.tabName();
+    }
+
+    public boolean usesExternalTabFormatting() {
+        String mode = plugin.getConfig().getString("display.tab.mode", "auto");
+        if ("native".equalsIgnoreCase(mode)) {
+            return false;
+        }
+        if ("placeholders".equalsIgnoreCase(mode)) {
+            return true;
+        }
+        var plugins = plugin.getServer().getPluginManager();
+        return plugins.isPluginEnabled("TAB") || plugins.isPluginEnabled("TAB-Bridge");
+    }
+
+    private boolean displaysPlayerPreset(Player player, PlayerProfile profile) {
+        if (!groupStore.getTitle(player.getUniqueId()).isBlank()
+                || NO_TITLE.equals(profile.getActiveTitle()) || "__custom__".equals(profile.getActiveTitle())) {
+            return false;
+        }
+        TitleDefinition active = getTitle(profile.getActiveTitle());
+        String effectiveId = active != null && canUse(player, active) ? active.getId() : getDefaultTitleId();
+        return DEFAULT_TITLE_ID.equals(effectiveId);
+    }
+
     public void applyDisplay(Player player) {
         PlayerProfile profile = getProfile(player);
         reconcileTitles(player, profile);
         String name = getDisplayName(player);
         String title = TextUtil.colorize(getActiveTitleDisplay(player));
         String formattedTitle = formatTitleSpacing(title);
-        displaySnapshots.put(player.getUniqueId(), new DisplaySnapshot(title, name));
         String safeName = TextUtil.colorize("&r" + name);
+        boolean tabEnabled = plugin.getConfig().getBoolean("display.tab.enabled", true);
+        boolean hiddenPlayerTitle = plugin.getConfig().getBoolean("display.tab.hide-player-title", true)
+                && displaysPlayerPreset(player, profile);
+        String tabTitle = tabEnabled && !hiddenPlayerTitle ? title : "";
+        String tabPrefix = formatTitleSpacing(tabTitle);
+        displaySnapshots.put(player.getUniqueId(), new DisplaySnapshot(title, name, tabTitle, tabPrefix, safeName));
         player.setDisplayName(safeName);
 
-        if (plugin.getConfig().getBoolean("display.tab.enabled", true)) {
+        if (!usesExternalTabFormatting()) {
             String format = plugin.getConfig().getString("display.tab.format", "%title%%name%");
-            player.setPlayerListName(TextUtil.colorize(format
-                    .replace("%title%", formattedTitle)
-                    .replace("%name%", safeName)));
-        } else {
-            player.setPlayerListName(safeName);
+            player.setPlayerListName(tabEnabled ? TextUtil.colorize(format
+                    .replace("%title%", tabPrefix)
+                    .replace("%name%", safeName)) : safeName);
         }
 
         if (plugin.getConfig().getBoolean("display.head.enabled", true)) {
@@ -780,8 +836,14 @@ public final class TitleManager {
         Component hover = buildTitleListHover();
         String format = chatFormat;
         String separator = chatTitleSeparator;
+        String title = resolveChatTitle(player, snapshot.title());
+        // An old/custom format must not bypass the mandatory chat title.
+        if (!player.hasPermission(HIDE_CHAT_TITLE_PERMISSION) && !format.contains("%title%")) {
+            format = "%title%" + format;
+        }
+        String effectiveFormat = format;
         event.renderer(ChatRenderer.viewerUnaware((source, displayName, message) ->
-                ChatFormatter.render(format, snapshot.title(), separator, snapshot.name(), message, hover)));
+                ChatFormatter.render(effectiveFormat, title, separator, snapshot.name(), message, hover)));
     }
 
     public void scheduleDisplayUpdate(Player player) {
@@ -1030,6 +1092,7 @@ public final class TitleManager {
     }
 
     private void reconcileTitles(Player player, PlayerProfile profile) {
+        boolean hadSelection = !profile.getActiveTitle().isBlank();
         boolean changed = profile.purgeExpired();
         changed |= expireActiveTitle(profile);
         long now = System.currentTimeMillis();
@@ -1051,6 +1114,17 @@ public final class TitleManager {
                 clearExpiredNewPlayerTitle(profile, title.getId());
                 changed = true;
             }
+        }
+        // Apply once so expiring a manually selected title cannot undo the player's choice.
+        if (!profile.isNewcomerDefaultInitialized()) {
+            TitleDefinition newcomer = getTitle(PresetConfigUpdater.NEW_PLAYER_TITLE_ID);
+            if (!hadSelection && newcomer != null
+                    && newcomer.getNewPlayerDays() > 0 && profile.ownsTitle(newcomer.getId())) {
+                profile.setActiveTitle(newcomer.getId());
+                profile.setActiveTitleExpiresAt(profile.getOwnedTitles().get(newcomer.getId()));
+            }
+            profile.setNewcomerDefaultInitialized(true);
+            changed = true;
         }
         if (changed) {
             store.save(profile);
@@ -1147,6 +1221,6 @@ public final class TitleManager {
         return Double.isFinite(balance) ? TextUtil.formatMoney(balance) : "unavailable";
     }
 
-    private record DisplaySnapshot(String title, String name) {
+    private record DisplaySnapshot(String title, String name, String tabTitle, String tabPrefix, String tabName) {
     }
 }

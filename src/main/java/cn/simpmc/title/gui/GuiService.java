@@ -89,7 +89,9 @@ public final class GuiService {
         navigation(inventory, page, pages);
         inventory.setItem(47, button(Material.CHEST, "&6称号商城", List.of("&7购买新的称号", "&e点击进入")));
         inventory.setItem(48, button(Material.INK_SAC, "&d名字颜色", List.of("&7设置玩家名字颜色", "&e点击进入")));
-        inventory.setItem(49, button(Material.BARRIER, "&c取消当前称号", List.of("&7恢复为无称号状态")));
+        inventory.setItem(49, button(Material.BARRIER, "&c取消当前称号",
+                List.of(player.hasPermission(TitleManager.HIDE_CHAT_TITLE_PERMISSION)
+                        ? "&7取消个人称号；称号组仍优先生效" : "&7取消个人称号；聊天保留玩家称号，称号组仍优先")));
         inventory.setItem(51, button(Material.OAK_DOOR, "&c关闭菜单"));
         player.openInventory(inventory);
     }

@@ -50,7 +50,8 @@ public final class MenuListener implements Listener {
             }
             if (event.getRawSlot() == 49) {
                 titleManager.clearTitle(player);
-                player.sendMessage(TextUtil.colorize(plugin.message("prefix") + plugin.message("title-cleared")));
+                plugin.send(player, player.hasPermission(TitleManager.HIDE_CHAT_TITLE_PERMISSION)
+                        ? "title-cleared" : "title-cleared-chat-required");
                 player.closeInventory();
             } else if (event.getRawSlot() == 45 && holder.getPage() > 0) {
                 plugin.getGuiService().openTitles(player, holder.getPage() - 1);

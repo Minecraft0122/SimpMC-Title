@@ -1,4 +1,4 @@
-# SimpMC-Title 1.4.0
+# SimpMC-Title 1.5.0
 # 文本支持传统颜色代码，例如 &a；也支持 RGB，例如 &#55ccff 或 <#55ccff>。
 
 language: zh_CN
@@ -8,7 +8,7 @@ presets:
   initialized: true
 
 display:
-  # 默认显示的称号 ID。默认使用“玩家”；迁移后可设置为空以关闭默认称号。
+  # 普通默认称号 ID；新人首次进服优先佩戴“初来乍到”。设空只关闭个人默认，聊天仍有保底。
   default-title: "default_player"
   # 自定义称号未指定颜色时使用的颜色。
   default-title-color: "&7"
@@ -19,6 +19,10 @@ display:
     format: "%title%%name% &8» &r%2$s"
   tab:
     enabled: true
+    # auto: 检测 TAB / TAB-Bridge 后由其消费占位符；native: 直接设置列表名；placeholders: 仅占位符。
+    mode: auto
+    # 只隐藏 default_player 预设；聊天、头顶和其他称号不受影响。
+    hide-player-title: true
     format: "%title%%name%"
   head:
     enabled: true
@@ -93,7 +97,7 @@ colors:
 titles:
   default_player:
     display: "&7[玩家]"
-    description: "所有玩家均可使用；默认展示，可通过 /smtitle unequip 取消"
+    description: "所有玩家均可使用；聊天默认保底称号，Tab 默认隐藏"
     icon: PLAYER_HEAD
     purchase:
       enabled: false
@@ -102,7 +106,7 @@ titles:
       internal: -1
   new_player_7d:
     display: "&7[&f初来乍到&7]"
-    description: "新玩家首次进入服务器后7天内可使用，到期自动回收"
+    description: "新人首次进服默认佩戴，7天后自动回收；可手动取消或更换"
     icon: NAME_TAG
     new-player-days: 7
     purchase:
@@ -123,6 +127,7 @@ messages:
   invalid-custom-title: "&c自定义称号格式不正确或包含不允许的内容。"
   nickname-disabled: "&c昵称功能当前已关闭。"
   title-cleared: "&a已取消装备称号。"
+  title-cleared-chat-required: "&a已取消个人称号；聊天仍显示玩家称号，称号组仍优先生效。"
   title-no-access: "&c你还没有解锁这个称号。"
   title-given: "&a已将称号 %title% &a发放给 %player%。"
   title-taken: "&a已收回玩家 %player% &a的称号 %title%。"

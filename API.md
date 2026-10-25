@@ -16,7 +16,7 @@ Then add the dependency to the integrating plugin's `pom.xml`:
 <dependency>
     <groupId>cn.simpmc</groupId>
     <artifactId>SimpMC-Title</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -73,7 +73,9 @@ long internalBalance = titleApi.getInternalBalance(player.getUniqueId());
 
 `TitleInfo.display()` and `getTitleDisplay()` retain the configured color syntax such as `&7`. `getDisplayName()` and `getFullDisplay()` return Bukkit legacy text with section-sign color codes. An owned-title expiry value is an epoch timestamp in milliseconds; `0` means permanent. Returned lists, sets and maps are immutable snapshots.
 
-The bundled presets are `default_player` (`&7[玩家]`) and `new_player_7d` (`&7[&f初来乍到&7]`). The player preset is the fallback display until the player explicitly clears it. The newcomer preset is usable only until seven days after the player's first join and is automatically removed at expiry. Grants and forced equips cannot extend this window, including for administrators. `getActiveTitleId` returns the fallback ID when it is displayed; clearing persists through reconnects. Existing personal titles and group priority are preserved.
+The bundled presets are `default_player` (`&7[玩家]`) and `new_player_7d` (`&7[&f初来乍到&7]`). Eligible newcomers automatically equip the newcomer preset once, unless an existing personal selection or explicit clear is present. It is usable only until seven days after first join and automatically removed at expiry. Grants and forced equips cannot extend this window, including for administrators. Manual selections and clearing persist through reconnects; expiry of another title does not restore the newcomer selection. `getActiveTitleId` returns the personal fallback ID when applicable. Existing personal titles and group priority are preserved.
+
+Since 1.5.0, the active-title API describes the saved/effective personal or group selection, not the channel-specific rendering. Clearing may return an empty active display while chat still shows the player fallback: only `simpmctitle.title.hide` permits empty chat titles (default false). The player preset is hidden from Tab by default. TAB / TAB-Bridge consumers should use `%simpmctitle_tab_title%`, `%simpmctitle_tab_prefix%` and `%simpmctitle_tab_name%`; these read immutable online display snapshots, return empty for players without a snapshot, and apply the Tab visibility settings. See [TAB_BRIDGE.md](TAB_BRIDGE.md).
 
 When the Paper chat event is available, the displayed title is rendered as an Adventure component with a hover tooltip containing every configured title. Integrations that replace the chat renderer should preserve the title component's hover event if they want to retain this behavior.
 
@@ -98,7 +100,7 @@ if (target != null) {
 - `equipTitle(player, id)` equips only when the player owns it or has permission to use it.
 - `forceEquipTitle(player, id, days)` grants and equips the title, bypassing ownership checks.
 - `takeTitle(player, id)` removes ownership and clears it if currently equipped.
-- `clearTitle(player)` clears the player's personal active title. A shared group title remains visible until the player is removed from the group.
+- `clearTitle(player)` clears the player's personal active title and persists the manual opt-out. Chat still shows the player fallback unless `simpmctitle.title.hide` is granted. A shared group title remains visible until the player is removed from the group.
 
 `registerCustomTitle(display)` creates a validated custom definition in `config.yml` when it does not already exist, and returns its generated ID. Call it on the server's main thread (or Folia global region scheduler), because it updates and reloads plugin configuration. Pass the returned ID to grant/equip methods; do not construct generated IDs yourself.
 
