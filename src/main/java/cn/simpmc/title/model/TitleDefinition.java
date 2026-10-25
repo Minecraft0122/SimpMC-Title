@@ -12,9 +12,16 @@ public final class TitleDefinition {
     private final int purchaseDays;
     private final double goldPrice;
     private final long internalPrice;
+    private final int newPlayerDays;
 
     public TitleDefinition(String id, String display, String description, String permission, Material icon,
                            boolean purchaseEnabled, int purchaseDays, double goldPrice, long internalPrice) {
+        this(id, display, description, permission, icon, purchaseEnabled, purchaseDays, goldPrice, internalPrice, 0);
+    }
+
+    public TitleDefinition(String id, String display, String description, String permission, Material icon,
+                           boolean purchaseEnabled, int purchaseDays, double goldPrice, long internalPrice,
+                           int newPlayerDays) {
         this.id = id;
         this.display = display;
         this.description = description;
@@ -24,6 +31,7 @@ public final class TitleDefinition {
         this.purchaseDays = purchaseDays;
         this.goldPrice = goldPrice;
         this.internalPrice = internalPrice;
+        this.newPlayerDays = Math.max(0, newPlayerDays);
     }
 
     public String getId() {
@@ -60,6 +68,11 @@ public final class TitleDefinition {
 
     public long getInternalPrice() {
         return internalPrice;
+    }
+
+    /** Number of days after a player's first join during which this title can be used. */
+    public int getNewPlayerDays() {
+        return newPlayerDays;
     }
 
     public boolean isGoldPurchasable() {

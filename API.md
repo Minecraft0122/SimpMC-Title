@@ -16,7 +16,7 @@ Then add the dependency to the integrating plugin's `pom.xml`:
 <dependency>
     <groupId>cn.simpmc</groupId>
     <artifactId>SimpMC-Title</artifactId>
-    <version>1.3.0</version>
+    <version>1.4.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -72,6 +72,10 @@ long internalBalance = titleApi.getInternalBalance(player.getUniqueId());
 ```
 
 `TitleInfo.display()` and `getTitleDisplay()` retain the configured color syntax such as `&7`. `getDisplayName()` and `getFullDisplay()` return Bukkit legacy text with section-sign color codes. An owned-title expiry value is an epoch timestamp in milliseconds; `0` means permanent. Returned lists, sets and maps are immutable snapshots.
+
+The bundled presets are `default_player` (`&7[玩家]`) and `new_player_7d` (`&7[&f初来乍到&7]`). The player preset is the fallback display until the player explicitly clears it. The newcomer preset is usable only until seven days after the player's first join and is automatically removed at expiry. Grants and forced equips cannot extend this window, including for administrators. `getActiveTitleId` returns the fallback ID when it is displayed; clearing persists through reconnects. Existing personal titles and group priority are preserved.
+
+When the Paper chat event is available, the displayed title is rendered as an Adventure component with a hover tooltip containing every configured title. Integrations that replace the chat renderer should preserve the title component's hover event if they want to retain this behavior.
 
 ## Grant and Equip
 

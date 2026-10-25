@@ -14,6 +14,8 @@ SimpMC-Title is a Paper plugin for managing player titles, nicknames, display co
 - Nickname content with length and character validation.
 - Legacy colors, RGB colors and two-color gradients.
 - Chat, tab list and head display synchronization.
+- Hovering a chat title shows every configured title.
+- Built-in default player title and a newcomer title that expires seven days after first join.
 - Shared title groups whose members display the same title.
 - Admin commands for granting, taking and forcing titles.
 - Optional PlaceholderAPI expansion.
@@ -44,7 +46,20 @@ SimpMC-Title is a Paper plugin for managing player titles, nicknames, display co
 
 Other plugins can integrate with the public API documented in [API.md](API.md). The plugin registers `SimpMCTitleAPI` as a Bukkit service.
 
-The bundled `config.yml` starts without preset titles. Custom titles without an explicit color use `&7`. Group definitions and UUID membership are stored in `groups.yml`; each player can belong to one group, and the group's shared title takes priority over their personal title while assigned. Title changes synchronize to chat, the player list (Tab), and head display.
+The bundled `config.yml` includes the `default_player` and `new_player_7d` presets. The player title is shown by default until the player runs `/smtitle unequip`. A player receives the newcomer title for the first seven days after their first join; the title is reclaimed when it expires, including while the player remains online. On upgrade, missing presets are added to `config.yml` without reserializing or replacing existing settings. Custom titles without an explicit color use `&7`. Group definitions and UUID membership are stored in `groups.yml`; each player can belong to one group, and the group's shared title takes priority over their personal title while assigned. Title changes synchronize to chat, the player list (Tab), and head display.
+
+## 预设称号与聊天悬停
+
+| 称号 ID | 显示文本 | 使用规则 |
+| --- | --- | --- |
+| `default_player` | `&7[玩家]` | 所有人可选；没有其他称号时默认展示。 |
+| `new_player_7d` | `&7[&f初来乍到&7]` | 从首次进入本服务器起计算 7 × 24 小时，期间自动解锁，可在菜单中选择；到期自动回收。 |
+
+`/smctitle` 打开菜单，`/smctitle unequip` 手动取消称号，取消状态在重连和重启后保留。可用 `/smctitle equip default_player` 恢复玩家称号，或在期限内用 `/smctitle equip new_player_7d` 选择新玩家称号。已有个人称号或称号组不会被预设覆盖。首次进服时间保存为 `players.yml` 的 `first-joined-at`；老玩家沿用服务器记录的首次进服时间，安装或更新插件不会重新赠送 7 天。
+
+首次升级会补充两个缺失的预设，并把旧版空的 `display.default-title` 设置为 `default_player`；已有非空默认称号、称号定义、其他设置及注释均保留。迁移由 `presets.initialized` 标记，之后管理员仍可将默认称号设置为空以关闭它。无需删除配置或玩家数据。
+
+鼠标放在聊天消息的称号文字上，会显示所有通过内容校验并加载的配置称号（包括尚未解锁的称号）。称号与玩家名默认相隔一个空格，悬停及称号样式不会扩散到玩家名或消息。此功能由插件的 Paper 聊天渲染器提供，需启用 `display.chat.enabled` 且格式中保留 `%title%`；如果其他聊天插件取消消息或替换渲染器，需要相应集成。
 
 ## Economy
 

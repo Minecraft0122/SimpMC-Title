@@ -62,7 +62,7 @@ public final class GuiService {
             lore.add(TextUtil.colorize("&8[ &c称号说明 &8]"));
             lore.add(TextUtil.colorize("&7" + title.getDescription()));
             lore.add("");
-            boolean active = title.getId().equalsIgnoreCase(titleManager.getProfile(player).getActiveTitle());
+            boolean active = title.getId().equalsIgnoreCase(titleManager.getActiveTitleId(player.getUniqueId()));
             if (active) {
                 lore.add(TextUtil.colorize("&8[ &a当前状态 &8]"));
                 lore.add(TextUtil.colorize("&a✔ 正在使用"));
@@ -297,9 +297,8 @@ public final class GuiService {
     }
 
     private String activeTitleDisplay(Player player) {
-        String activeId = titleManager.getProfile(player).getActiveTitle();
-        TitleDefinition active = titleManager.getTitle(activeId);
-        return active == null ? TextUtil.colorize("&c未装备") : active.getDisplay();
+        String display = titleManager.getActiveTitleDisplay(player);
+        return display.isEmpty() ? TextUtil.colorize("&c未装备") : display;
     }
 
     private int unlockedCount(Player player) {

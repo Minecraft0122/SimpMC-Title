@@ -1,11 +1,15 @@
-# SimpMC-Title 1.3.0
+# SimpMC-Title 1.4.0
 # 文本支持传统颜色代码，例如 &a；也支持 RGB，例如 &#55ccff 或 <#55ccff>。
 
 language: zh_CN
 
+presets:
+  # 升级迁移标记；已有配置只在首次升级时将空默认称号设为“玩家”。
+  initialized: true
+
 display:
-  # 默认显示的称号 ID。设置为空字符串即可关闭默认称号。
-  default-title: ""
+  # 默认显示的称号 ID。默认使用“玩家”；迁移后可设置为空以关闭默认称号。
+  default-title: "default_player"
   # 自定义称号未指定颜色时使用的颜色。
   default-title-color: "&7"
   title-separator: " "
@@ -84,6 +88,28 @@ colors:
   - "<light_purple>"
   - "<#55ccff>"
   - "<gradient:#55ccff:#b36bff>"
+
+# 内置预设称号。插件升级时只会补齐缺少的预设，不会覆盖已有配置。
+titles:
+  default_player:
+    display: "&7[玩家]"
+    description: "所有玩家均可使用；默认展示，可通过 /smtitle unequip 取消"
+    icon: PLAYER_HEAD
+    purchase:
+      enabled: false
+      days: 0
+      gold: -1
+      internal: -1
+  new_player_7d:
+    display: "&7[&f初来乍到&7]"
+    description: "新玩家首次进入服务器后7天内可使用，到期自动回收"
+    icon: NAME_TAG
+    new-player-days: 7
+    purchase:
+      enabled: false
+      days: 0
+      gold: -1
+      internal: -1
 
 messages:
   prefix: "&8[&bSimpMC-Title&8] "

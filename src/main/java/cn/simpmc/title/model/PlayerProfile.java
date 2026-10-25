@@ -11,6 +11,7 @@ public final class PlayerProfile {
     private String activeTitle = "";
     private String customTitle = "";
     private long activeTitleExpiresAt;
+    private long firstJoinedAt;
     private long internalBalance;
     private final Map<String, Long> ownedTitles = new LinkedHashMap<>();
 
@@ -64,6 +65,14 @@ public final class PlayerProfile {
 
     public long getInternalBalance() {
         return internalBalance;
+    }
+
+    public long getFirstJoinedAt() {
+        return firstJoinedAt;
+    }
+
+    public void setFirstJoinedAt(long firstJoinedAt) {
+        this.firstJoinedAt = Math.max(0L, firstJoinedAt);
     }
 
     public void setInternalBalance(long internalBalance) {
